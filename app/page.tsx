@@ -37,9 +37,6 @@ export default async function HomePage() {
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
           <h1 className="text-3xl font-semibold text-gray-900">Jim Manson's Team Tracker</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Modern team and project management system - your Access replacement
-          </p>
         </div>
       </div>
 
