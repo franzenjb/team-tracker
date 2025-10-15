@@ -50,6 +50,14 @@ export default function RootLayout({
                     </Link>
                   </div>
                 </div>
+                <div className="flex items-center">
+                  <Link
+                    href="/tech-specs"
+                    className="inline-flex items-center px-3 py-1 text-sm font-medium text-gray-600 hover:text-blue-600 border border-gray-300 rounded-md hover:border-blue-400"
+                  >
+                    Tech Specs
+                  </Link>
+                </div>
               </div>
             </div>
           </nav>
