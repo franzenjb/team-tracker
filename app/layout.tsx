@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Team Tracker',
+  title: "Jim Manson's Team Tracker",
   description: 'Modern team and project management system',
 }
 
@@ -21,7 +21,7 @@ export default function RootLayout({
               <div className="flex justify-between h-16">
                 <div className="flex">
                   <Link href="/" className="flex items-center px-2 text-gray-900 font-semibold text-xl">
-                    Team Tracker
+                    Jim Manson's Team Tracker
                   </Link>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                     <Link
