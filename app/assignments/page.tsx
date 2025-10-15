@@ -69,7 +69,7 @@ export default function AssignmentsPage() {
     if (editingId) {
       const { error } = await supabase
         .from('assignments')
-        .update(data as any)
+        .update(data)
         .eq('id', editingId)
 
       if (error) {
@@ -79,7 +79,7 @@ export default function AssignmentsPage() {
     } else {
       const { error } = await supabase
         .from('assignments')
-        .insert([data] as any)
+        .insert([data])
 
       if (error) {
         alert('Error creating assignment: ' + error.message)
