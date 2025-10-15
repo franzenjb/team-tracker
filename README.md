@@ -1,8 +1,18 @@
-# Team Tracker
+# Jim Manson's Team Tracker
 
 A modern, web-based team and project management system - your Microsoft Access replacement for the 21st century!
 
-Built with Next.js, TypeScript, Tailwind CSS, and Supabase.
+**Live App:** https://team-tracker-r3z0mrjz1-jbf-2539-e1ec6bfb.vercel.app
+**GitHub:** https://github.com/franzenjb/team-tracker
+**Built:** October 2025
+
+## Quick Reference
+
+- **Deployed on:** Vercel (auto-deploys from GitHub)
+- **Database:** Supabase (PostgreSQL)
+- **Framework:** Next.js 15 with App Router
+- **Styling:** Tailwind CSS
+- **Language:** TypeScript
 
 ## Features
 
@@ -155,6 +165,54 @@ Your app will be live in minutes with a URL like `your-app.vercel.app`!
 3. Select a project and optionally an author
 4. Write your note content
 5. Click **Create**
+
+## How to Make Changes
+
+### Editing the Code
+
+1. **Clone the repo locally:**
+   ```bash
+   git clone https://github.com/franzenjb/team-tracker.git
+   cd team-tracker
+   npm install
+   ```
+
+2. **Make your changes** in any code editor (VS Code, Cursor, etc.)
+
+3. **Test locally:**
+   ```bash
+   npm run dev
+   # Visit http://localhost:3000
+   ```
+
+4. **Deploy changes:**
+   ```bash
+   git add .
+   git commit -m "Description of your changes"
+   git push
+   ```
+   Vercel will automatically redeploy within 2-3 minutes!
+
+### Common Edits
+
+**Change the title/branding:**
+- Edit `app/layout.tsx` (line 6 and 24)
+- Edit `app/page.tsx` (line 39)
+
+**Change styling/colors:**
+- Edit `app/globals.css` for global styles
+- Edit individual page files for component-specific styles
+
+**Add/modify database fields:**
+- Run SQL in Supabase SQL Editor to alter tables
+- Update types in `lib/types.ts`
+- Update forms in `components/` folder
+
+**Change form behavior:**
+- People form: `components/PersonForm.tsx`
+- Project form: `components/ProjectForm.tsx`
+- Assignments: `app/assignments/page.tsx`
+- Notes: `app/notes/page.tsx`
 
 ## Security & Access Control
 
