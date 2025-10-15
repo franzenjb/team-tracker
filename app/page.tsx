@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import ActivityFeed from '@/components/ActivityFeed'
 
 export const dynamic = 'force-dynamic'
 
@@ -136,6 +137,12 @@ export default async function HomePage() {
             Add Note
           </Link>
         </div>
+      </div>
+
+      {/* Activity Feed */}
+      <div className="mt-8 bg-white shadow rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <ActivityFeed />
       </div>
     </div>
   )
