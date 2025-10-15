@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export const metadata: Metadata = {
   title: "Jim Manson's Team Tracker",
@@ -20,8 +21,15 @@ export default function RootLayout({
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex">
-                  <Link href="/" className="flex items-center px-2 text-gray-900 font-semibold text-xl">
-                    Jim Manson's Team Tracker
+                  <Link href="/" className="flex items-center gap-3 px-2 text-gray-900 font-semibold text-xl">
+                    <Image
+                      src="/jim-manson.jpg"
+                      alt="Jim Manson"
+                      width={40}
+                      height={40}
+                      className="rounded-full object-cover"
+                    />
+                    <span>Jim Manson's Team Tracker</span>
                   </Link>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                     <Link
