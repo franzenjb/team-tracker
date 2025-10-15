@@ -281,4 +281,196 @@ For issues or questions:
 
 ---
 
+## Complete Project Overview
+
+### What This Project Is
+
+Jim Manson's Team Tracker is a full-stack web application that replaces Microsoft Access for team and project management. It's accessible from any device with a web browser and allows multiple people to collaborate in real-time.
+
+### The Complete Technology Stack
+
+#### Frontend (What Users See)
+- **Next.js 15** - React framework that handles routing, server-side rendering, and optimization
+- **React 18** - UI library for building interactive components
+- **TypeScript** - Adds type safety to JavaScript
+- **Tailwind CSS** - Utility-first CSS framework for styling
+- **Location**: All frontend code lives in the `app/` and `components/` folders
+
+#### Backend (Data & Logic)
+- **Supabase** - PostgreSQL database hosted in the cloud
+- **Supabase Client** - JavaScript library that connects the app to the database
+- **Location**: Database configuration in `lib/supabase.ts`, schema in `supabase/schema.sql`
+
+#### Deployment & Hosting
+- **Vercel** - Hosting platform that auto-deploys from GitHub
+- **GitHub** - Version control and code repository
+- **Location**:
+  - Code: https://github.com/franzenjb/team-tracker
+  - Live app: https://team-tracker-r3z0mrjz1-jbf-2539-e1ec6bfb.vercel.app
+
+### How Everything Connects
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    USER'S BROWSER                           │
+│  (Chrome, Safari, Firefox - any device)                     │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      │ HTTPS Request
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    VERCEL (Hosting)                         │
+│  - Serves the Next.js app                                   │
+│  - Auto-deploys when you push to GitHub                    │
+│  - URL: team-tracker-xxx.vercel.app                        │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      │ Data requests
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│              SUPABASE (Database)                            │
+│  - PostgreSQL database                                      │
+│  - Stores people, projects, assignments, notes             │
+│  - Project: xnwzwppmknnyawffkpry.supabase.co              │
+└─────────────────────────────────────────────────────────────┘
+
+                      ▲
+                      │ You make changes
+                      │
+┌─────────────────────────────────────────────────────────────┐
+│                 GITHUB (Code Storage)                       │
+│  - Stores all source code                                   │
+│  - Version history of all changes                          │
+│  - Triggers Vercel deployment on push                      │
+│  - Repo: franzenjb/team-tracker                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### What Each File/Folder Does
+
+#### `app/` - The Application Pages
+- `app/page.tsx` - **Dashboard/Homepage** - shows stats and recent activity
+- `app/layout.tsx` - **Site-wide wrapper** - navigation bar and page structure
+- `app/globals.css` - **Global styles** - colors, fonts, input styling
+- `app/people/page.tsx` - **People page** - list and manage team members
+- `app/projects/page.tsx` - **Projects page** - list and manage projects
+- `app/assignments/page.tsx` - **Assignments page** - link people to projects
+- `app/notes/page.tsx` - **Notes page** - project notes and updates
+
+#### `components/` - Reusable Form Components
+- `PersonForm.tsx` - Form for adding/editing people
+- `ProjectForm.tsx` - Form for adding/editing projects
+
+#### `lib/` - Configuration & Types
+- `supabase.ts` - Database connection setup
+- `types.ts` - TypeScript definitions for data structures
+
+#### `supabase/` - Database
+- `schema.sql` - SQL code to create all database tables
+
+#### Root Configuration Files
+- `package.json` - Lists all dependencies (libraries the app needs)
+- `tsconfig.json` - TypeScript configuration
+- `tailwind.config.ts` - Tailwind CSS configuration
+- `next.config.js` - Next.js configuration
+- `.env.local` - Environment variables (Supabase credentials) - **NOT in GitHub**
+- `.gitignore` - Files to exclude from GitHub
+
+### The Data Flow (What Happens When You Click "Add Person")
+
+1. **User fills out form** → `components/PersonForm.tsx` handles the input
+2. **User clicks "Create"** → Form calls `supabase.from('people').insert()`
+3. **Request goes to Supabase** → Data is validated and inserted into the database
+4. **Success response** → Page refreshes and calls `supabase.from('people').select()`
+5. **Data comes back** → React renders the updated list with the new person
+
+### Where Your Data Lives
+
+**Database Tables (in Supabase):**
+- `people` - Team members (name, role, email, skills, notes)
+- `projects` - Projects (name, description, status, dates)
+- `assignments` - Links people to projects (person_id, project_id, role, %)
+- `project_notes` - Notes about projects (project_id, content, author)
+
+**Access the database:**
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Click "Table Editor" to view/edit data
+4. Click "SQL Editor" to run queries
+
+### Key Locations & Credentials
+
+| What | Where | How to Access |
+|------|-------|---------------|
+| **Live App** | Vercel | https://team-tracker-r3z0mrjz1-jbf-2539-e1ec6bfb.vercel.app |
+| **Source Code** | GitHub | https://github.com/franzenjb/team-tracker |
+| **Database** | Supabase | https://supabase.com/dashboard → xnwzwppmknnyawffkpry |
+| **Local Code** | MacBook | `~/team-tracker/` |
+| **Deployment** | Vercel Dashboard | https://vercel.com/dashboard |
+
+### Environment Variables (Secrets)
+
+These connect your app to Supabase:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xnwzwppmknnyawffkpry.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... (long string)
+```
+
+**Where they're stored:**
+- Locally: `~/team-tracker/.env.local` (NOT in GitHub)
+- Production: Vercel Dashboard → Project Settings → Environment Variables
+- To view in Vercel: `cd ~/team-tracker && vercel env ls`
+
+### How Auto-Deployment Works
+
+1. You make changes to code locally
+2. You run `git push` to send changes to GitHub
+3. GitHub notifies Vercel "new code available"
+4. Vercel automatically:
+   - Downloads the new code
+   - Runs `npm install` to get dependencies
+   - Runs `npm run build` to compile the app
+   - Deploys to production URL
+   - Takes 2-3 minutes total
+
+### Development Workflow
+
+**Making a change:**
+```bash
+# 1. Edit files in your code editor
+# 2. Test locally
+cd ~/team-tracker
+npm run dev
+# Visit http://localhost:3000
+
+# 3. Commit and deploy
+git add .
+git commit -m "What you changed"
+git push
+# Vercel auto-deploys in 2-3 minutes
+```
+
+### Costs (All Free Tier)
+
+- **GitHub**: Free for public repositories
+- **Vercel**: Free (100GB bandwidth/month, unlimited deployments)
+- **Supabase**: Free (500MB database, 2GB bandwidth/month)
+- **Total monthly cost**: $0 (unless you exceed free tier limits)
+
+### Technologies You Should Know About
+
+**If you want to make changes, learn these:**
+1. **React/TypeScript** - For UI components and logic
+2. **Tailwind CSS** - For styling/colors
+3. **SQL** - For database queries and schema changes
+4. **Git** - For version control
+
+**Helpful Resources:**
+- [Next.js Tutorial](https://nextjs.org/learn)
+- [Tailwind Docs](https://tailwindcss.com/docs)
+- [Supabase Quickstart](https://supabase.com/docs/guides/getting-started)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/intro.html)
+
+---
+
 Built with ❤️ as a modern replacement for Microsoft Access
