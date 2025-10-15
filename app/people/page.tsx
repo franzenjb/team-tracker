@@ -70,7 +70,7 @@ export default function PeoplePage() {
 
   // Get unique roles for filter
   const uniqueRoles = useMemo(() => {
-    const roles = people.map(p => p.role).filter(Boolean)
+    const roles = people.map(p => p.role).filter((role): role is string => role !== null && role !== undefined)
     return Array.from(new Set(roles))
   }, [people])
 

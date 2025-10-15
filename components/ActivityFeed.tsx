@@ -45,56 +45,64 @@ export default function ActivityFeed() {
     // Add people
     if (peopleResult.data) {
       peopleResult.data.forEach((person: Person) => {
-        activities.push({
-          id: person.id,
-          type: 'person',
-          title: `New team member: ${person.name}`,
-          description: person.role || 'Team member',
-          timestamp: person.created_at,
-          link: '/people',
-        })
+        if (person.created_at) {
+          activities.push({
+            id: person.id,
+            type: 'person',
+            title: `New team member: ${person.name}`,
+            description: person.role || 'Team member',
+            timestamp: person.created_at,
+            link: '/people',
+          })
+        }
       })
     }
 
     // Add projects
     if (projectsResult.data) {
       projectsResult.data.forEach((project: Project) => {
-        activities.push({
-          id: project.id,
-          type: 'project',
-          title: `New project: ${project.name}`,
-          description: project.description || 'Project added',
-          timestamp: project.created_at,
-          link: '/projects',
-        })
+        if (project.created_at) {
+          activities.push({
+            id: project.id,
+            type: 'project',
+            title: `New project: ${project.name}`,
+            description: project.description || 'Project added',
+            timestamp: project.created_at,
+            link: '/projects',
+          })
+        }
       })
     }
 
     // Add assignments
     if (assignmentsResult.data) {
       assignmentsResult.data.forEach((assignment: any) => {
-        activities.push({
-          id: assignment.id,
-          type: 'assignment',
-          title: `${assignment.people?.name || 'Someone'} assigned to ${assignment.projects?.name || 'project'}`,
-          description: assignment.role || 'Assignment created',
-          timestamp: assignment.created_at,
-          link: '/assignments',
-        })
+        if (assignment.created_at) {
+          activities.push({
+            id: assignment.id,
+            type: 'assignment',
+            title: `${assignment.people?.name || 'Someone'} assigned to ${assignment.projects?.name || 'project'}`,
+            description: assignment.role || 'Assignment created',
+            timestamp: assignment.created_at,
+            link: '/assignments',
+          })
+        }
       })
     }
 
     // Add notes
     if (notesResult.data) {
       notesResult.data.forEach((note: any) => {
-        activities.push({
-          id: note.id,
-          type: 'note',
-          title: `Note added to ${note.projects?.name || 'project'}`,
-          description: note.content?.substring(0, 50) || 'Note created',
-          timestamp: note.created_at,
-          link: '/notes',
-        })
+        if (note.created_at) {
+          activities.push({
+            id: note.id,
+            type: 'note',
+            title: `Note added to ${note.projects?.name || 'project'}`,
+            description: note.content?.substring(0, 50) || 'Note created',
+            timestamp: note.created_at,
+            link: '/notes',
+          })
+        }
       })
     }
 
