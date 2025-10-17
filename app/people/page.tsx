@@ -140,7 +140,7 @@ export default function PeoplePage() {
 
     // Add title
     doc.setFontSize(18)
-    doc.text("Jim Manson's Team Tracker - People", 14, 20)
+    doc.text("Jim's Team Tracker - People", 14, 20)
 
     // Add date
     doc.setFontSize(10)

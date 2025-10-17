@@ -244,7 +244,7 @@ export default function AssignmentsPage() {
 
     // Add title
     doc.setFontSize(18)
-    doc.text("Jim Manson's Team Tracker - Assignments", 14, 20)
+    doc.text("Jim's Team Tracker - Assignments", 14, 20)
 
     // Add date
     doc.setFontSize(10)

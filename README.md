@@ -1,4 +1,4 @@
-# Jim Manson's Team Tracker
+# Jim's Team Tracker
 
 A modern, web-based team and project management system - your Microsoft Access replacement for the 21st century!
 
@@ -285,7 +285,7 @@ For issues or questions:
 
 ### What This Project Is
 
-Jim Manson's Team Tracker is a full-stack web application that replaces Microsoft Access for team and project management. It's accessible from any device with a web browser and allows multiple people to collaborate in real-time.
+Jim's Team Tracker is a full-stack web application that replaces Microsoft Access for team and project management. It's accessible from any device with a web browser and allows multiple people to collaborate in real-time.
 
 ### The Complete Technology Stack
 

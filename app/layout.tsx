@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 export const metadata: Metadata = {
-  title: "Jim Manson's Team Tracker",
+  title: "Jim's Team Tracker",
   description: 'Modern team and project management system',
 }
 
@@ -29,7 +29,7 @@ export default function RootLayout({
                       height={40}
                       className="rounded-full object-cover"
                     />
-                    <span>Jim Manson's Team Tracker</span>
+                    <span>Jim's Team Tracker</span>
                   </Link>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                     <Link

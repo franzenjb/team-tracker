@@ -151,7 +151,7 @@ export default function ProjectsPage() {
 
     // Add title
     doc.setFontSize(18)
-    doc.text("Jim Manson's Team Tracker - Projects", 14, 20)
+    doc.text("Jim's Team Tracker - Projects", 14, 20)
 
     // Add date
     doc.setFontSize(10)
