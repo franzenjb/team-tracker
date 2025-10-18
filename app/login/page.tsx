@@ -26,8 +26,8 @@ export default function LoginPage() {
       if (response.ok) {
         // Redirect to the page they were trying to access, or dashboard
         const returnUrl = new URLSearchParams(window.location.search).get('returnUrl') || '/people'
-        router.push(returnUrl)
-        router.refresh()
+        // Use window.location for full page reload to ensure cookie is sent with next request
+        window.location.href = returnUrl
       } else {
         setError(data.error || 'Invalid password')
       }
