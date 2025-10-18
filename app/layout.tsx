@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
+import AuthStatus from '@/components/AuthStatus'
 
 export const metadata: Metadata = {
   title: "Jim's Team Tracker",
@@ -65,6 +66,7 @@ export default function RootLayout({
                   >
                     Tech Specs
                   </Link>
+                  <AuthStatus />
                 </div>
               </div>
             </div>
