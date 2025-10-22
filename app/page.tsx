@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ActivityFeed from '@/components/ActivityFeed'
+import ComprehensiveExport from '@/components/ComprehensiveExport'
 import { extractPowerBILink, cleanDescription } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -130,7 +131,7 @@ export default async function HomePage() {
       {/* Quick Actions */}
       <div className="mt-8 bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Link
             href="/people"
             className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
@@ -155,6 +156,7 @@ export default async function HomePage() {
           >
             Add Note
           </Link>
+          <ComprehensiveExport />
         </div>
       </div>
 
