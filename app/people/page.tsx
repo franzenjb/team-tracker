@@ -250,123 +250,84 @@ export default function PeoplePage() {
         </div>
       )}
 
-      <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            {sortedPeople.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-gray-500">
-                  {people.length === 0
-                    ? 'No people yet. Add your first team member above!'
-                    : 'No results found. Try adjusting your search or filters.'}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-300">
-                <thead>
-                  <tr>
-                    <th
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Name
-                        {sortField === 'name' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('role')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Role
-                        {sortField === 'role' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-50"
-                      onClick={() => handleSort('email')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Email
-                        {sortField === 'email' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-48">
-                      Skills
-                    </th>
-                    <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {sortedPeople.map((person) => (
-                    <tr key={person.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        {person.name}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.role || '-'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {person.email || '-'}
-                      </td>
-                      <td className="px-3 py-4 text-sm text-gray-500 w-48">
-                        {person.skills?.length ? (
-                          <div className="flex flex-wrap gap-1 max-w-48 overflow-hidden">
-                            {person.skills.slice(0, 3).map((skill, i) => (
-                              <span
-                                key={i}
-                                className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                            {person.skills.length > 3 && (
-                              <span className="text-xs text-gray-400">
-                                +{person.skills.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button
-                          onClick={() => handleEdit(person)}
-                          className="text-blue-600 hover:text-blue-900 mr-4"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => deletePerson(person.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                </table>
-              </div>
-            )}
-            {sortedPeople.length > 0 && (
-              <div className="mt-2 text-sm text-gray-500 text-center">
-                Showing {sortedPeople.length} of {people.length} people
-              </div>
-            )}
+      <div className="mt-8">
+        {sortedPeople.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <p className="text-gray-500">
+              {people.length === 0
+                ? 'No people yet. Add your first team member above!'
+                : 'No results found. Try adjusting your search or filters.'}
+            </p>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {sortedPeople.map((person) => (
+              <div key={person.id} className="bg-white p-6 rounded-lg shadow border">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-medium text-gray-900 truncate">
+                      {person.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {person.role || 'No role specified'}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1 truncate">
+                      {person.email || 'No email'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => handleEdit(person)}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deletePerson(person.id)}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                
+                {person.skills?.length ? (
+                  <div className="mt-4">
+                    <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-2">
+                      Skills
+                    </h4>
+                    <div className="flex flex-wrap gap-1">
+                      {person.skills.map((skill, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                
+                {person.notes && (
+                  <div className="mt-4">
+                    <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1">
+                      Notes
+                    </h4>
+                    <p className="text-sm text-gray-600 line-clamp-3">
+                      {person.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {sortedPeople.length > 0 && (
+          <div className="mt-6 text-sm text-gray-500 text-center">
+            Showing {sortedPeople.length} of {people.length} people
+          </div>
+        )}
       </div>
     </div>
   )
