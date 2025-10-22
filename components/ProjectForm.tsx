@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Project } from '@/lib/types'
+import { extractPowerBILink, cleanDescription } from '@/lib/utils'
 
 type ProjectFormProps = {
   project?: Project
@@ -14,10 +15,24 @@ export default function ProjectForm({ project, onSuccess, onCancel }: ProjectFor
   const [formData, setFormData] = useState({
     name: project?.name || '',
     description: project?.description || '',
+    powerbi_url: '',
     status: project?.status || 'planned',
     start_date: project?.start_date || '',
     end_date: project?.end_date || '',
   })
+
+  // Extract Power BI URL from description on component load
+  useEffect(() => {
+    if (project?.description) {
+      const extractedUrl = extractPowerBILink(project.description)
+      const cleanDesc = cleanDescription(project.description)
+      setFormData(prev => ({
+        ...prev,
+        description: cleanDesc,
+        powerbi_url: extractedUrl || ''
+      }))
+    }
+  }, [project])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -27,9 +42,15 @@ export default function ProjectForm({ project, onSuccess, onCancel }: ProjectFor
     setError(null)
 
     try {
+      // Combine description and Power BI URL into the description field
+      let combinedDescription = formData.description || ''
+      if (formData.powerbi_url) {
+        combinedDescription += (combinedDescription ? ' | ' : '') + `Power BI Link: ${formData.powerbi_url}`
+      }
+
       const data = {
         name: formData.name,
-        description: formData.description || null,
+        description: combinedDescription || null,
         status: formData.status as 'planned' | 'active' | 'paused' | 'complete',
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
@@ -52,7 +73,7 @@ export default function ProjectForm({ project, onSuccess, onCancel }: ProjectFor
         if (error) throw error
       }
 
-      setFormData({ name: '', description: '', status: 'planned', start_date: '', end_date: '' })
+      setFormData({ name: '', description: '', powerbi_url: '', status: 'planned', start_date: '', end_date: '' })
       onSuccess?.()
     } catch (err: any) {
       setError(err.message)
@@ -93,7 +114,47 @@ export default function ProjectForm({ project, onSuccess, onCancel }: ProjectFor
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+          placeholder="Project description (without Power BI link)"
         />
+      </div>
+
+      <div>
+        <label htmlFor="powerbi_url" className="block text-sm font-medium text-gray-700">
+          Power BI Dashboard URL
+        </label>
+        <div className="mt-1">
+          <input
+            type="url"
+            id="powerbi_url"
+            value={formData.powerbi_url}
+            onChange={(e) => setFormData({ ...formData, powerbi_url: e.target.value })}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+            placeholder="https://app.powerbi.com/..."
+          />
+          {formData.powerbi_url && (
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">📊</span>
+                <div className="flex-1">
+                  <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                    Power BI Dashboard Preview
+                  </div>
+                  <a 
+                    href={formData.powerbi_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Open Dashboard →
+                  </a>
+                  <div className="text-xs text-blue-600 mt-1 break-all opacity-75">
+                    {formData.powerbi_url}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div>
