@@ -19,10 +19,21 @@ const AVAILABLE_SKILLS = [
   'General Information and planning'
 ]
 
+const AVAILABLE_ROLES = [
+  'I&P Team Member',
+  'Power BI Developer',
+  'GIS Specialist',
+  'Data Analyst',
+  'Manager',
+  'Coordinator',
+  'Volunteer',
+  'Consultant'
+]
+
 export default function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   const [formData, setFormData] = useState({
     name: person?.name || '',
-    role: person?.role || '',
+    roles: person?.role ? person.role.split(', ') : [],
     email: person?.email || '',
     skills: person?.skills || [],
     notes: person?.notes || '',
@@ -39,6 +50,15 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
     }))
   }
 
+  const handleRoleToggle = (role: string) => {
+    setFormData(prev => ({
+      ...prev,
+      roles: prev.roles.includes(role)
+        ? prev.roles.filter(r => r !== role)
+        : [...prev.roles, role]
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -47,7 +67,7 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
     try {
       const data = {
         name: formData.name,
-        role: formData.role || null,
+        role: formData.roles.length > 0 ? formData.roles.join(', ') : null,
         email: formData.email || null,
         skills: formData.skills.length > 0 ? formData.skills : null,
         notes: formData.notes || null,
@@ -70,7 +90,7 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
         if (error) throw error
       }
 
-      setFormData({ name: '', role: '', email: '', skills: [], notes: '' })
+      setFormData({ name: '', roles: [], email: '', skills: [], notes: '' })
       onSuccess?.()
     } catch (err: any) {
       setError(err.message)
@@ -102,17 +122,34 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
       </div>
 
       <div>
-        <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-          Role
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          Roles
         </label>
-        <input
-          type="text"
-          id="role"
-          value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-          placeholder="e.g., Developer, Designer, Manager"
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {AVAILABLE_ROLES.map((role) => (
+            <label key={role} className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.roles.includes(role)}
+                onChange={() => handleRoleToggle(role)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">{role}</span>
+            </label>
+          ))}
+        </div>
+        {formData.roles.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {formData.roles.map((role) => (
+              <span
+                key={role}
+                className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700"
+              >
+                {role}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
