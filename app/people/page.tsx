@@ -115,18 +115,17 @@ export default function PeoplePage() {
   // CSV Export function
   async function exportToCSV() {
     try {
-      // Fetch all data separately
-      const [peopleResult, assignmentsResult, projectsResult] = await Promise.all([
-        supabase.from('people').select('*').order('name'),
+      // Fetch assignments and projects data to join with people
+      const [assignmentsResult, projectsResult] = await Promise.all([
         supabase.from('assignments').select('*'),
         supabase.from('projects').select('*')
       ])
 
-      if (peopleResult.error) throw peopleResult.error
       if (assignmentsResult.error) throw assignmentsResult.error
       if (projectsResult.error) throw projectsResult.error
 
-      const peopleData = peopleResult.data || []
+      // Use the already-loaded people from the page
+      const peopleData = sortedPeople
       const assignmentsData = assignmentsResult.data || []
       const projectsData = projectsResult.data || []
 
@@ -195,18 +194,17 @@ export default function PeoplePage() {
   // PDF Export function
   async function exportToPDF() {
     try {
-      // Fetch all data separately
-      const [peopleResult, assignmentsResult, projectsResult] = await Promise.all([
-        supabase.from('people').select('*').order('name'),
+      // Fetch assignments and projects data to join with people
+      const [assignmentsResult, projectsResult] = await Promise.all([
         supabase.from('assignments').select('*'),
         supabase.from('projects').select('*')
       ])
 
-      if (peopleResult.error) throw peopleResult.error
       if (assignmentsResult.error) throw assignmentsResult.error
       if (projectsResult.error) throw projectsResult.error
 
-      const peopleData = peopleResult.data || []
+      // Use the already-loaded people from the page
+      const peopleData = sortedPeople
       const assignmentsData = assignmentsResult.data || []
       const projectsData = projectsResult.data || []
 

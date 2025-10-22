@@ -113,7 +113,8 @@ export default function AssignmentsPage() {
         'Created'
       ]
 
-      const rows = assignments.map(assignment => [
+      // Use filtered assignments from the page (respects user's filters)
+      const rows = filteredAssignments.map(assignment => [
         assignment.title || assignment.notes?.substring(0, 50) || 'Untitled',
         assignment.person_name,
         assignment.person_email || '',
@@ -172,16 +173,16 @@ export default function AssignmentsPage() {
         minute: '2-digit'
       })}`, pageWidth / 2, 22, { align: 'center' })
 
-      // Summary stats
+      // Summary stats (from filtered results)
       doc.setFontSize(10)
       doc.setTextColor(0, 0, 0)
-      doc.text(`Total Assignments: ${assignments.length}`, 14, 30)
-      doc.text(`Pending: ${assignments.filter(a => a.status === 'pending').length}`, 70, 30)
-      doc.text(`In Progress: ${assignments.filter(a => a.status === 'in_progress').length}`, 110, 30)
-      doc.text(`Complete: ${assignments.filter(a => a.status === 'complete').length}`, 160, 30)
+      doc.text(`Total Assignments: ${filteredAssignments.length}`, 14, 30)
+      doc.text(`Pending: ${filteredAssignments.filter(a => a.status === 'pending').length}`, 70, 30)
+      doc.text(`In Progress: ${filteredAssignments.filter(a => a.status === 'in_progress').length}`, 110, 30)
+      doc.text(`Complete: ${filteredAssignments.filter(a => a.status === 'complete').length}`, 160, 30)
 
-      // Sort assignments by status and priority
-      const sortedAssignments = [...assignments].sort((a, b) => {
+      // Sort filtered assignments by status and priority (respects user's filters)
+      const sortedAssignments = [...filteredAssignments].sort((a, b) => {
         const statusOrder = { 'pending': 1, 'in_progress': 2, 'on_hold': 3, 'complete': 4 }
         const priorityOrder = { 'urgent': 1, 'high': 2, 'medium': 3, 'low': 4 }
 

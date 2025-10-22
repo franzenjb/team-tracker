@@ -208,18 +208,17 @@ export default function ProjectsPage() {
   // CSV Export function
   async function exportToCSV() {
     try {
-      // Fetch all data separately
-      const [projectsResult, assignmentsResult, peopleResult] = await Promise.all([
-        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+      // Fetch assignments and people data to join with projects
+      const [assignmentsResult, peopleResult] = await Promise.all([
         supabase.from('assignments').select('*'),
         supabase.from('people').select('*')
       ])
 
-      if (projectsResult.error) throw projectsResult.error
       if (assignmentsResult.error) throw assignmentsResult.error
       if (peopleResult.error) throw peopleResult.error
 
-      const projectsData = projectsResult.data || []
+      // Use the already-loaded projects from the page
+      const projectsData = sortedProjects
       const assignmentsData = assignmentsResult.data || []
       const peopleData = peopleResult.data || []
 
@@ -254,10 +253,10 @@ export default function ProjectsPage() {
           project.status,
           assignedPeople || 'Unassigned',
           assignmentRoles || 'No roles',
-          cleanDescription(project.description),
-          extractPowerBILink(project.description) || '',
-          extractWorkspace(project.description) || '',
-          extractDeveloper(project.description) || '',
+          cleanDescription(project.description || null),
+          extractPowerBILink(project.description || null) || '',
+          extractWorkspace(project.description || null) || '',
+          extractDeveloper(project.description || null) || '',
           project.start_date || '',
           project.end_date || '',
           project.created_at ? new Date(project.created_at).toISOString().split('T')[0] : ''
@@ -285,18 +284,17 @@ export default function ProjectsPage() {
   // PDF Export function
   async function exportToPDF() {
     try {
-      // Fetch all data separately
-      const [projectsResult, assignmentsResult, peopleResult] = await Promise.all([
-        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+      // Fetch assignments and people data to join with projects
+      const [assignmentsResult, peopleResult] = await Promise.all([
         supabase.from('assignments').select('*'),
         supabase.from('people').select('*')
       ])
 
-      if (projectsResult.error) throw projectsResult.error
       if (assignmentsResult.error) throw assignmentsResult.error
       if (peopleResult.error) throw peopleResult.error
 
-      const projectsData = projectsResult.data || []
+      // Use the already-loaded projects from the page
+      const projectsData = sortedProjects
       const assignmentsData = assignmentsResult.data || []
       const peopleData = peopleResult.data || []
 
@@ -341,10 +339,10 @@ export default function ProjectsPage() {
           project.project_type || '-',
           project.status,
           assignedPeople || 'Unassigned',
-          cleanDescription(project.description),
-          extractPowerBILink(project.description) ? 'Yes' : 'No',
-          formatDate(project.start_date) || '-',
-          formatDate(project.end_date) || '-'
+          cleanDescription(project.description || null),
+          extractPowerBILink(project.description || null) ? 'Yes' : 'No',
+          formatDate(project.start_date || null) || '-',
+          formatDate(project.end_date || null) || '-'
         ]
       })
 
