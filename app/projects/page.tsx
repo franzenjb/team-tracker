@@ -58,6 +58,8 @@ export default function ProjectsPage() {
   function handleEdit(project: Project) {
     setEditingProject(project)
     setShowForm(true)
+    // Scroll to top where the form is located
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function handleFormSuccess() {

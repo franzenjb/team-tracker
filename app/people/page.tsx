@@ -55,6 +55,8 @@ export default function PeoplePage() {
   function handleEdit(person: Person) {
     setEditingPerson(person)
     setShowForm(true)
+    // Scroll to top where the form is located
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function handleFormSuccess() {
