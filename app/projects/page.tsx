@@ -6,6 +6,7 @@ import { Project } from '@/lib/types'
 import ProjectForm from '@/components/ProjectForm'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { cleanDescription, extractPowerBILink, extractWorkspace, extractDeveloper, formatDate } from '@/lib/utils'
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -201,59 +202,185 @@ export default function ProjectsPage() {
   }, [filteredProjects, sortField, sortDirection])
 
   // CSV Export function
-  function exportToCSV() {
-    const headers = ['Name', 'Description', 'Status', 'Start Date', 'End Date']
-    const rows = sortedProjects.map(project => [
-      project.name,
-      project.description || '',
-      project.status,
-      project.start_date || '',
-      project.end_date || ''
-    ])
+  async function exportToCSV() {
+    // Fetch projects with assignments and people data
+    const { data: projectsWithAssignments, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        assignments (
+          role,
+          status,
+          people (
+            name
+          )
+        )
+      `)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching projects:', error)
+      alert('Error fetching project data for export')
+      return
+    }
+
+    const headers = [
+      'Project Name',
+      'Project Type',
+      'Status',
+      'Assigned People',
+      'Assignment Roles',
+      'Clean Description',
+      'Power BI Link',
+      'Workspace',
+      'Developer',
+      'Start Date',
+      'End Date',
+      'Created Date'
+    ]
+
+    const rows = (projectsWithAssignments || []).map(project => {
+      const assignments = project.assignments || []
+      const assignedPeople = assignments.map((a: any) => a.people?.name || 'Unknown').join('; ')
+      const assignmentRoles = assignments.map((a: any) => a.role || 'Not specified').join('; ')
+
+      return [
+        project.name,
+        project.project_type || '',
+        project.status,
+        assignedPeople || 'Unassigned',
+        assignmentRoles || 'No roles',
+        cleanDescription(project.description),
+        extractPowerBILink(project.description) || '',
+        extractWorkspace(project.description) || '',
+        extractDeveloper(project.description) || '',
+        project.start_date || '',
+        project.end_date || '',
+        project.created_at ? new Date(project.created_at).toISOString().split('T')[0] : ''
+      ]
+    })
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `projects-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `projects-comprehensive-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
   }
 
   // PDF Export function
-  function exportToPDF() {
-    const doc = new jsPDF()
+  async function exportToPDF() {
+    // Fetch projects with assignments and people data
+    const { data: projectsWithAssignments, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        assignments (
+          role,
+          status,
+          people (
+            name
+          )
+        )
+      `)
+      .order('created_at', { ascending: false })
 
-    // Add title
-    doc.setFontSize(18)
-    doc.text("Jim's Team Tracker - Projects", 14, 20)
+    if (error) {
+      console.error('Error fetching projects:', error)
+      alert('Error fetching project data for export')
+      return
+    }
 
-    // Add date
+    const doc = new jsPDF('landscape') // Use landscape for more columns
+    const pageWidth = doc.internal.pageSize.width
+
+    // Header
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(220, 38, 38) // Red Cross red
+    doc.text("Team Tracker - Projects Report", pageWidth / 2, 15, { align: 'center' })
+
+    // Date
     doc.setFontSize(10)
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, pageWidth / 2, 22, { align: 'center' })
 
-    // Add table
+    // Summary stats
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text(`Total Projects: ${projectsWithAssignments?.length || 0}`, 14, 30)
+
+    // Table data
+    const tableData = (projectsWithAssignments || []).map(project => {
+      const assignments = project.assignments || []
+      const assignedPeople = assignments.map((a: any) => a.people?.name || 'Unknown').join(', ')
+
+      return [
+        project.name,
+        project.project_type || '-',
+        project.status,
+        assignedPeople || 'Unassigned',
+        cleanDescription(project.description),
+        extractPowerBILink(project.description) ? 'Yes' : 'No',
+        formatDate(project.start_date) || '-',
+        formatDate(project.end_date) || '-'
+      ]
+    })
+
     autoTable(doc, {
       startY: 35,
-      head: [['Name', 'Description', 'Status', 'Start Date', 'End Date']],
-      body: sortedProjects.map(project => [
-        project.name,
-        project.description || '-',
-        project.status,
-        project.start_date ? new Date(project.start_date).toLocaleDateString() : '-',
-        project.end_date ? new Date(project.end_date).toLocaleDateString() : '-'
-      ]),
+      head: [[
+        'Project Name',
+        'Type',
+        'Status',
+        'Assigned To',
+        'Description',
+        'Has Link',
+        'Start Date',
+        'End Date'
+      ]],
+      body: tableData,
       theme: 'striped',
-      headStyles: { fillColor: [22, 163, 74] }, // green-600
+      headStyles: {
+        fillColor: [220, 38, 38], // Red Cross red
+        fontSize: 9,
+        fontStyle: 'bold',
+        textColor: [255, 255, 255]
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
+      },
+      columnStyles: {
+        0: { cellWidth: 35 }, // Project Name
+        1: { cellWidth: 20 }, // Type
+        2: { cellWidth: 18 }, // Status
+        3: { cellWidth: 30 }, // Assigned To
+        4: { cellWidth: 60 }, // Description
+        5: { cellWidth: 15 }, // Has Link
+        6: { cellWidth: 22 }, // Start Date
+        7: { cellWidth: 22 }  // End Date
+      },
+      margin: { left: 14, right: 14 }
     })
 
     // Save the PDF
-    doc.save(`projects-${new Date().toISOString().split('T')[0]}.pdf`)
+    doc.save(`projects-comprehensive-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   if (loading) {

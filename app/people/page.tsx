@@ -6,6 +6,7 @@ import { Person } from '@/lib/types'
 import PersonForm from '@/components/PersonForm'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatDate } from '@/lib/utils'
 
 export default function PeoplePage() {
   const [people, setPeople] = useState<Person[]>([])
@@ -112,58 +113,185 @@ export default function PeoplePage() {
   }, [filteredPeople, sortField, sortDirection])
 
   // CSV Export function
-  function exportToCSV() {
-    const headers = ['Name', 'Role', 'Email', 'Skills', 'Notes']
-    const rows = sortedPeople.map(person => [
-      person.name,
-      person.role || '',
-      person.email || '',
-      person.skills?.join('; ') || '',
-      person.notes || ''
-    ])
+  async function exportToCSV() {
+    // Fetch people with assignments and project data
+    const { data: peopleWithAssignments, error } = await supabase
+      .from('people')
+      .select(`
+        *,
+        assignments (
+          role,
+          status,
+          projects (
+            name,
+            status,
+            project_type
+          )
+        )
+      `)
+      .order('name')
+
+    if (error) {
+      console.error('Error fetching people:', error)
+      alert('Error fetching people data for export')
+      return
+    }
+
+    const headers = [
+      'Name',
+      'Role',
+      'Email',
+      'Skills',
+      'Assigned Projects',
+      'Project Statuses',
+      'Assignment Roles',
+      'Assignment Statuses',
+      'Notes',
+      'Created Date'
+    ]
+
+    const rows = (peopleWithAssignments || []).map(person => {
+      const assignments = person.assignments || []
+      const projectNames = assignments.map((a: any) => a.projects?.name || 'Unknown').join('; ')
+      const projectStatuses = assignments.map((a: any) => a.projects?.status || 'Unknown').join('; ')
+      const assignmentRoles = assignments.map((a: any) => a.role || 'Not specified').join('; ')
+      const assignmentStatuses = assignments.map((a: any) => a.status || 'Not specified').join('; ')
+
+      return [
+        person.name,
+        person.role || '',
+        person.email || '',
+        person.skills?.join('; ') || '',
+        projectNames || 'No projects',
+        projectStatuses || 'N/A',
+        assignmentRoles || 'No roles',
+        assignmentStatuses || 'N/A',
+        person.notes || '',
+        person.created_at ? new Date(person.created_at).toISOString().split('T')[0] : ''
+      ]
+    })
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     ].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `people-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `people-comprehensive-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
   }
 
   // PDF Export function
-  function exportToPDF() {
-    const doc = new jsPDF()
+  async function exportToPDF() {
+    // Fetch people with assignments and project data
+    const { data: peopleWithAssignments, error } = await supabase
+      .from('people')
+      .select(`
+        *,
+        assignments (
+          role,
+          status,
+          projects (
+            name,
+            status,
+            project_type
+          )
+        )
+      `)
+      .order('name')
 
-    // Add title
-    doc.setFontSize(18)
-    doc.text("Jim's Team Tracker - People", 14, 20)
+    if (error) {
+      console.error('Error fetching people:', error)
+      alert('Error fetching people data for export')
+      return
+    }
 
-    // Add date
+    const doc = new jsPDF('landscape') // Use landscape for more columns
+    const pageWidth = doc.internal.pageSize.width
+
+    // Header
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(220, 38, 38) // Red Cross red
+    doc.text("Team Tracker - People Report", pageWidth / 2, 15, { align: 'center' })
+
+    // Date
     doc.setFontSize(10)
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`, pageWidth / 2, 22, { align: 'center' })
 
-    // Add table
-    autoTable(doc, {
-      startY: 35,
-      head: [['Name', 'Role', 'Email', 'Skills']],
-      body: sortedPeople.map(person => [
+    // Summary stats
+    doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
+    doc.text(`Total People: ${peopleWithAssignments?.length || 0}`, 14, 30)
+
+    // Table data
+    const tableData = (peopleWithAssignments || []).map(person => {
+      const assignments = person.assignments || []
+      const projectNames = assignments.map((a: any) => a.projects?.name || 'Unknown').join(', ')
+      const projectCount = assignments.length
+
+      return [
         person.name,
         person.role || '-',
         person.email || '-',
-        person.skills?.join(', ') || '-'
-      ]),
+        person.skills?.join(', ') || '-',
+        projectCount.toString(),
+        projectNames || 'No projects',
+        person.notes ? person.notes.substring(0, 50) + (person.notes.length > 50 ? '...' : '') : '-'
+      ]
+    })
+
+    autoTable(doc, {
+      startY: 35,
+      head: [[
+        'Name',
+        'Role',
+        'Email',
+        'Skills',
+        'Projects',
+        'Assigned To',
+        'Notes'
+      ]],
+      body: tableData,
       theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235] }, // blue-600
+      headStyles: {
+        fillColor: [220, 38, 38], // Red Cross red
+        fontSize: 9,
+        fontStyle: 'bold',
+        textColor: [255, 255, 255]
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
+      },
+      columnStyles: {
+        0: { cellWidth: 30 }, // Name
+        1: { cellWidth: 25 }, // Role
+        2: { cellWidth: 35 }, // Email
+        3: { cellWidth: 40 }, // Skills
+        4: { cellWidth: 15 }, // Projects count
+        5: { cellWidth: 60 }, // Assigned To
+        6: { cellWidth: 50 }  // Notes
+      },
+      margin: { left: 14, right: 14 }
     })
 
     // Save the PDF
-    doc.save(`people-${new Date().toISOString().split('T')[0]}.pdf`)
+    doc.save(`people-comprehensive-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   // Handle sort

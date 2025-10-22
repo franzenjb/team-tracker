@@ -22,20 +22,48 @@ export function extractPowerBILink(description: string | null): string | null {
 
 export function cleanDescription(description: string | null): string {
   if (!description) return 'No description'
-  
+
   // Split by | and filter out links and metadata
   const parts = description.split(' | ').filter(Boolean)
-  const cleanParts = parts.filter(part => 
-    !part.includes('Power BI Link:') && 
-    !part.includes('ArcGIS Link:') && 
-    !part.includes('SharePoint Link:') && 
-    !part.includes('Tableau Link:') && 
-    !part.includes('Dashboard Link:') && 
+  const cleanParts = parts.filter(part =>
+    !part.includes('Power BI Link:') &&
+    !part.includes('ArcGIS Link:') &&
+    !part.includes('SharePoint Link:') &&
+    !part.includes('Tableau Link:') &&
+    !part.includes('Dashboard Link:') &&
     !part.includes('Workspace:') &&
     !part.includes('Developer:') &&
     !part.includes('Tags:') &&
     part.trim().length > 0
   )
-  
+
   return cleanParts.join(' • ') || 'Project Resource'
+}
+
+export function extractWorkspace(description: string | null): string {
+  if (!description) return ''
+
+  const match = description.match(/Workspace:\s*([^|]+)/i)
+  return match ? match[1].trim() : ''
+}
+
+export function extractDeveloper(description: string | null): string {
+  if (!description) return ''
+
+  const match = description.match(/Developer:\s*([^|]+)/i)
+  return match ? match[1].trim() : ''
+}
+
+export function formatDate(dateString: string | null): string {
+  if (!dateString) return ''
+
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch {
+    return ''
+  }
 }
