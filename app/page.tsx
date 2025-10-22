@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import ActivityFeed from '@/components/ActivityFeed'
+import { extractPowerBILink, cleanDescription } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,14 +66,32 @@ export default async function HomePage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Active Projects</h2>
           {activeProjects && activeProjects.length > 0 ? (
             <ul className="space-y-3">
-              {activeProjects.map((project) => (
-                <li key={project.id} className="border-l-4 border-green-500 pl-4">
-                  <Link href={`/projects`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                    {project.name}
-                  </Link>
-                  <p className="text-xs text-gray-500 mt-1">{project.description}</p>
-                </li>
-              ))}
+              {activeProjects.map((project) => {
+                const powerBILink = extractPowerBILink(project.description)
+                const cleanDesc = cleanDescription(project.description)
+                
+                return (
+                  <li key={project.id} className="border-l-4 border-green-500 pl-4">
+                    <Link href={`/projects`} className="text-sm font-medium text-gray-900 hover:text-blue-600">
+                      {project.name}
+                    </Link>
+                    <p className="text-xs text-gray-500 mt-1">{cleanDesc}</p>
+                    {powerBILink && (
+                      <div className="mt-2">
+                        <a 
+                          href={powerBILink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          <span>📊</span>
+                          Open Power BI
+                        </a>
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <p className="text-sm text-gray-500">No active projects</p>

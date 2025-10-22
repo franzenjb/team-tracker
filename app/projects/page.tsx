@@ -86,6 +86,51 @@ export default function ProjectsPage() {
     }
   }
 
+  function renderDescription(description: string | null) {
+    if (!description) return 'No description'
+    
+    // Split by | to separate different parts of the description
+    const parts = description.split(' | ').filter(Boolean)
+    
+    return (
+      <div className="space-y-1">
+        {parts.map((part, index) => {
+          // Check if this part contains a Power BI link
+          if (part.includes('Power BI Link:') || part.includes('Link:')) {
+            const linkMatch = part.match(/https?:\/\/[^\s]+/)
+            if (linkMatch) {
+              const url = linkMatch[0]
+              return (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">📊</span>
+                  <a 
+                    href={url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                  >
+                    Open Power BI Report
+                  </a>
+                </div>
+              )
+            }
+          }
+          
+          // Regular description part
+          if (part && !part.includes('Link:') && !part.includes('Workspace:')) {
+            return (
+              <div key={index} className="text-sm text-gray-600">
+                {part.replace(/^(Tags:|Developer:|Description_Tags:)/, '')}
+              </div>
+            )
+          }
+          
+          return null
+        })}
+      </div>
+    )
+  }
+
   // Filter and search logic
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
@@ -315,9 +360,9 @@ export default function ProjectsPage() {
                         {project.status}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-gray-500 line-clamp-2">
-                      {project.description || 'No description'}
-                    </p>
+                    <div className="mt-2">
+                      {renderDescription(project.description)}
+                    </div>
                     {(project.start_date || project.end_date) && (
                       <div className="mt-3 text-xs text-gray-500">
                         {project.start_date && (
@@ -377,7 +422,9 @@ export default function ProjectsPage() {
                               {project.status}
                             </span>
                           </div>
-                          <p className="mt-1 text-sm text-gray-600">{project.description}</p>
+                          <div className="mt-1">
+                            {renderDescription(project.description)}
+                          </div>
                           <div className="mt-2 flex gap-4 text-xs text-gray-500">
                             {start && <div>Start: {start.toLocaleDateString()}</div>}
                             {end && <div>End: {end.toLocaleDateString()}</div>}
