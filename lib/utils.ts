@@ -37,7 +37,13 @@ export function cleanDescription(description: string | null): string {
     part.trim().length > 0
   )
 
-  return cleanParts.join(' • ') || 'Project Resource'
+  // Strip HTML tags and join
+  const result = cleanParts
+    .map(part => part.replace(/<[^>]*>/g, '').trim())
+    .filter(part => part.length > 0)
+    .join(' • ')
+
+  return result || 'Project Resource'
 }
 
 export function extractWorkspace(description: string | null): string {

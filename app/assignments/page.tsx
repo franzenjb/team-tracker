@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Assignment, Person, Project } from '@/lib/types'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { formatDate } from '@/lib/utils'
 
 type AssignmentWithDetails = Assignment & {
   person_name: string
@@ -90,6 +93,164 @@ export default function AssignmentsPage() {
     }
   }
 
+  // CSV Export function
+  async function exportToCSV() {
+    try {
+      const headers = [
+        'Title',
+        'Person',
+        'Email',
+        'Project',
+        'Project Type',
+        'Status',
+        'Priority',
+        'Due Date',
+        'Requester',
+        'Role',
+        'Allocation %',
+        'Description',
+        'Notes',
+        'Created'
+      ]
+
+      const rows = assignments.map(assignment => [
+        assignment.title || assignment.notes?.substring(0, 50) || 'Untitled',
+        assignment.person_name,
+        assignment.person_email || '',
+        assignment.project_name,
+        assignment.project_type || '',
+        assignment.status || 'pending',
+        assignment.priority || '',
+        assignment.due_date || '',
+        assignment.requester || '',
+        assignment.role || '',
+        assignment.percent?.toString() || '',
+        assignment.description || '',
+        assignment.notes || '',
+        assignment.created_at ? new Date(assignment.created_at).toISOString().split('T')[0] : ''
+      ])
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `assignments-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting CSV:', error)
+      alert('Error exporting CSV. Please try again.')
+    }
+  }
+
+  // PDF Export function
+  async function exportToPDF() {
+    try {
+      const doc = new jsPDF('landscape')
+      const pageWidth = doc.internal.pageSize.width
+
+      // Header
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(220, 38, 38)
+      doc.text("Work Assignments Report", pageWidth / 2, 15, { align: 'center' })
+
+      // Date
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`, pageWidth / 2, 22, { align: 'center' })
+
+      // Summary stats
+      doc.setFontSize(10)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Total Assignments: ${assignments.length}`, 14, 30)
+      doc.text(`Pending: ${assignments.filter(a => a.status === 'pending').length}`, 70, 30)
+      doc.text(`In Progress: ${assignments.filter(a => a.status === 'in_progress').length}`, 110, 30)
+      doc.text(`Complete: ${assignments.filter(a => a.status === 'complete').length}`, 160, 30)
+
+      // Sort assignments by status and priority
+      const sortedAssignments = [...assignments].sort((a, b) => {
+        const statusOrder = { 'pending': 1, 'in_progress': 2, 'on_hold': 3, 'complete': 4 }
+        const priorityOrder = { 'urgent': 1, 'high': 2, 'medium': 3, 'low': 4 }
+
+        const statusDiff = (statusOrder[a.status as keyof typeof statusOrder] || 99) -
+                          (statusOrder[b.status as keyof typeof statusOrder] || 99)
+        if (statusDiff !== 0) return statusDiff
+
+        return (priorityOrder[a.priority as keyof typeof priorityOrder] || 99) -
+               (priorityOrder[b.priority as keyof typeof priorityOrder] || 99)
+      })
+
+      // Table data
+      const tableData = sortedAssignments.map(assignment => [
+        assignment.person_name,
+        assignment.project_name,
+        assignment.title || assignment.notes?.substring(0, 30) || 'Untitled',
+        assignment.status || 'pending',
+        assignment.priority || '-',
+        formatDate(assignment.due_date || null) || '-',
+        assignment.role || '-',
+        assignment.requester || '-'
+      ])
+
+      autoTable(doc, {
+        startY: 35,
+        head: [[
+          'Person',
+          'Project',
+          'Title',
+          'Status',
+          'Priority',
+          'Due Date',
+          'Role',
+          'Requester'
+        ]],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [220, 38, 38],
+          fontSize: 9,
+          fontStyle: 'bold',
+          textColor: [255, 255, 255]
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          overflow: 'linebreak',
+          cellWidth: 'wrap'
+        },
+        columnStyles: {
+          0: { cellWidth: 30 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 30 }
+        },
+        margin: { left: 14, right: 14 }
+      })
+
+      doc.save(`assignments-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Error exporting PDF. Please try again.')
+    }
+  }
+
   const filteredAssignments = assignments.filter(assignment => {
     const matchesStatus = !statusFilter || assignment.status === statusFilter
     const matchesPerson = !personFilter || assignment.person_id === personFilter
@@ -124,12 +285,26 @@ export default function AssignmentsPage() {
                 Track all work requests, issues, and tasks for your I&P team
               </p>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              + New Assignment
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={exportToCSV}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={exportToPDF}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Export PDF
+              </button>
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                + New Assignment
+              </button>
+            </div>
           </div>
         </div>
 

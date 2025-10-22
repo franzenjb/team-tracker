@@ -108,24 +108,28 @@ export default function ProjectsPage() {
     const developer = developerMatch ? developerMatch[1].trim() : null
     
     // Get clean description parts (excluding metadata)
-    const cleanParts = parts.filter(part => 
-      !part.includes('Power BI Link:') && 
-      !part.includes('Workspace:') && 
+    const cleanParts = parts.filter(part =>
+      !part.includes('Power BI Link:') &&
+      !part.includes('Workspace:') &&
       !part.includes('Developer:') &&
       !part.includes('Tags:') &&
       part.trim().length > 0
     )
-    
+
     return (
       <div className="space-y-3">
         {/* Main description content */}
         {cleanParts.length > 0 && (
           <div className="space-y-1">
-            {cleanParts.map((part, index) => (
-              <div key={index} className="text-sm text-gray-600">
-                {part.trim()}
-              </div>
-            ))}
+            {cleanParts.map((part, index) => {
+              // Strip HTML tags from description
+              const cleanText = part.replace(/<[^>]*>/g, '').trim()
+              return cleanText ? (
+                <div key={index} className="text-sm text-gray-600">
+                  {cleanText}
+                </div>
+              ) : null
+            })}
           </div>
         )}
         
@@ -203,184 +207,192 @@ export default function ProjectsPage() {
 
   // CSV Export function
   async function exportToCSV() {
-    // Fetch projects with assignments and people data
-    const { data: projectsWithAssignments, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        assignments (
-          role,
-          status,
-          people (
-            name
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
+    try {
+      // Fetch all data separately
+      const [projectsResult, assignmentsResult, peopleResult] = await Promise.all([
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('assignments').select('*'),
+        supabase.from('people').select('*')
+      ])
 
-    if (error) {
-      console.error('Error fetching projects:', error)
-      alert('Error fetching project data for export')
-      return
-    }
+      if (projectsResult.error) throw projectsResult.error
+      if (assignmentsResult.error) throw assignmentsResult.error
+      if (peopleResult.error) throw peopleResult.error
 
-    const headers = [
-      'Project Name',
-      'Project Type',
-      'Status',
-      'Assigned People',
-      'Assignment Roles',
-      'Clean Description',
-      'Power BI Link',
-      'Workspace',
-      'Developer',
-      'Start Date',
-      'End Date',
-      'Created Date'
-    ]
+      const projectsData = projectsResult.data || []
+      const assignmentsData = assignmentsResult.data || []
+      const peopleData = peopleResult.data || []
 
-    const rows = (projectsWithAssignments || []).map(project => {
-      const assignments = project.assignments || []
-      const assignedPeople = assignments.map((a: any) => a.people?.name || 'Unknown').join('; ')
-      const assignmentRoles = assignments.map((a: any) => a.role || 'Not specified').join('; ')
-
-      return [
-        project.name,
-        project.project_type || '',
-        project.status,
-        assignedPeople || 'Unassigned',
-        assignmentRoles || 'No roles',
-        cleanDescription(project.description),
-        extractPowerBILink(project.description) || '',
-        extractWorkspace(project.description) || '',
-        extractDeveloper(project.description) || '',
-        project.start_date || '',
-        project.end_date || '',
-        project.created_at ? new Date(project.created_at).toISOString().split('T')[0] : ''
+      const headers = [
+        'Project Name',
+        'Project Type',
+        'Status',
+        'Assigned People',
+        'Assignment Roles',
+        'Clean Description',
+        'Power BI Link',
+        'Workspace',
+        'Developer',
+        'Start Date',
+        'End Date',
+        'Created Date'
       ]
-    })
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    ].join('\n')
+      const rows = projectsData.map(project => {
+        const projectAssignments = assignmentsData.filter(a => a.project_id === project.id)
+        const assignedPeople = projectAssignments
+          .map(a => {
+            const person = peopleData.find(p => p.id === a.person_id)
+            return person?.name || 'Unknown'
+          })
+          .join('; ')
+        const assignmentRoles = projectAssignments.map(a => a.role || 'Not specified').join('; ')
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `projects-comprehensive-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+        return [
+          project.name,
+          project.project_type || '',
+          project.status,
+          assignedPeople || 'Unassigned',
+          assignmentRoles || 'No roles',
+          cleanDescription(project.description),
+          extractPowerBILink(project.description) || '',
+          extractWorkspace(project.description) || '',
+          extractDeveloper(project.description) || '',
+          project.start_date || '',
+          project.end_date || '',
+          project.created_at ? new Date(project.created_at).toISOString().split('T')[0] : ''
+        ]
+      })
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n')
+
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `projects-comprehensive-${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting CSV:', error)
+      alert('Error exporting CSV. Please try again.')
+    }
   }
 
   // PDF Export function
   async function exportToPDF() {
-    // Fetch projects with assignments and people data
-    const { data: projectsWithAssignments, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        assignments (
-          role,
-          status,
-          people (
-            name
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
+    try {
+      // Fetch all data separately
+      const [projectsResult, assignmentsResult, peopleResult] = await Promise.all([
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('assignments').select('*'),
+        supabase.from('people').select('*')
+      ])
 
-    if (error) {
-      console.error('Error fetching projects:', error)
-      alert('Error fetching project data for export')
-      return
+      if (projectsResult.error) throw projectsResult.error
+      if (assignmentsResult.error) throw assignmentsResult.error
+      if (peopleResult.error) throw peopleResult.error
+
+      const projectsData = projectsResult.data || []
+      const assignmentsData = assignmentsResult.data || []
+      const peopleData = peopleResult.data || []
+
+      const doc = new jsPDF('landscape') // Use landscape for more columns
+      const pageWidth = doc.internal.pageSize.width
+
+      // Header
+      doc.setFontSize(20)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(220, 38, 38) // Red Cross red
+      doc.text("Team Tracker - Projects Report", pageWidth / 2, 15, { align: 'center' })
+
+      // Date
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`, pageWidth / 2, 22, { align: 'center' })
+
+      // Summary stats
+      doc.setFontSize(10)
+      doc.setTextColor(0, 0, 0)
+      doc.text(`Total Projects: ${projectsData.length}`, 14, 30)
+
+      // Table data
+      const tableData = projectsData.map(project => {
+        const projectAssignments = assignmentsData.filter(a => a.project_id === project.id)
+        const assignedPeople = projectAssignments
+          .map(a => {
+            const person = peopleData.find(p => p.id === a.person_id)
+            return person?.name || 'Unknown'
+          })
+          .join(', ')
+
+        return [
+          project.name,
+          project.project_type || '-',
+          project.status,
+          assignedPeople || 'Unassigned',
+          cleanDescription(project.description),
+          extractPowerBILink(project.description) ? 'Yes' : 'No',
+          formatDate(project.start_date) || '-',
+          formatDate(project.end_date) || '-'
+        ]
+      })
+
+      autoTable(doc, {
+        startY: 35,
+        head: [[
+          'Project Name',
+          'Type',
+          'Status',
+          'Assigned To',
+          'Description',
+          'Has Link',
+          'Start Date',
+          'End Date'
+        ]],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [220, 38, 38], // Red Cross red
+          fontSize: 9,
+          fontStyle: 'bold',
+          textColor: [255, 255, 255]
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          overflow: 'linebreak',
+          cellWidth: 'wrap'
+        },
+        columnStyles: {
+          0: { cellWidth: 35 }, // Project Name
+          1: { cellWidth: 20 }, // Type
+          2: { cellWidth: 18 }, // Status
+          3: { cellWidth: 30 }, // Assigned To
+          4: { cellWidth: 60 }, // Description
+          5: { cellWidth: 15 }, // Has Link
+          6: { cellWidth: 22 }, // Start Date
+          7: { cellWidth: 22 }  // End Date
+        },
+        margin: { left: 14, right: 14 }
+      })
+
+      // Save the PDF
+      doc.save(`projects-comprehensive-${new Date().toISOString().split('T')[0]}.pdf`)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Error exporting PDF. Please try again.')
     }
-
-    const doc = new jsPDF('landscape') // Use landscape for more columns
-    const pageWidth = doc.internal.pageSize.width
-
-    // Header
-    doc.setFontSize(20)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(220, 38, 38) // Red Cross red
-    doc.text("Team Tracker - Projects Report", pageWidth / 2, 15, { align: 'center' })
-
-    // Date
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })}`, pageWidth / 2, 22, { align: 'center' })
-
-    // Summary stats
-    doc.setFontSize(10)
-    doc.setTextColor(0, 0, 0)
-    doc.text(`Total Projects: ${projectsWithAssignments?.length || 0}`, 14, 30)
-
-    // Table data
-    const tableData = (projectsWithAssignments || []).map(project => {
-      const assignments = project.assignments || []
-      const assignedPeople = assignments.map((a: any) => a.people?.name || 'Unknown').join(', ')
-
-      return [
-        project.name,
-        project.project_type || '-',
-        project.status,
-        assignedPeople || 'Unassigned',
-        cleanDescription(project.description),
-        extractPowerBILink(project.description) ? 'Yes' : 'No',
-        formatDate(project.start_date) || '-',
-        formatDate(project.end_date) || '-'
-      ]
-    })
-
-    autoTable(doc, {
-      startY: 35,
-      head: [[
-        'Project Name',
-        'Type',
-        'Status',
-        'Assigned To',
-        'Description',
-        'Has Link',
-        'Start Date',
-        'End Date'
-      ]],
-      body: tableData,
-      theme: 'striped',
-      headStyles: {
-        fillColor: [220, 38, 38], // Red Cross red
-        fontSize: 9,
-        fontStyle: 'bold',
-        textColor: [255, 255, 255]
-      },
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        overflow: 'linebreak',
-        cellWidth: 'wrap'
-      },
-      columnStyles: {
-        0: { cellWidth: 35 }, // Project Name
-        1: { cellWidth: 20 }, // Type
-        2: { cellWidth: 18 }, // Status
-        3: { cellWidth: 30 }, // Assigned To
-        4: { cellWidth: 60 }, // Description
-        5: { cellWidth: 15 }, // Has Link
-        6: { cellWidth: 22 }, // Start Date
-        7: { cellWidth: 22 }  // End Date
-      },
-      margin: { left: 14, right: 14 }
-    })
-
-    // Save the PDF
-    doc.save(`projects-comprehensive-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   if (loading) {
