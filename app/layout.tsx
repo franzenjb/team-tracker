@@ -51,12 +51,6 @@ export default function RootLayout({
                     >
                       Assignments
                     </Link>
-                    <Link
-                      href="/notes"
-                      className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-blue-600"
-                    >
-                      Notes
-                    </Link>
                   </div>
                 </div>
                 <div className="flex items-center">

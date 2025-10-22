@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Assignment, Person, Project } from '@/lib/types'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 type AssignmentWithDetails = Assignment & {
-  people?: Person
-  projects?: Project
+  person_name: string
+  project_name: string
+  project_type?: string
+  person_email?: string
 }
 
 export default function AssignmentsPage() {
@@ -17,607 +17,458 @@ export default function AssignmentsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({
-    person_id: '',
-    project_id: '',
-    role: '',
-    percent: '',
-    start_date: '',
-    end_date: '',
-    notes: '',
-  })
-  const [editingId, setEditingId] = useState<string | null>(null)
-
-  // Search & Filter states
-  const [searchTerm, setSearchTerm] = useState('')
+  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
+  const [statusFilter, setStatusFilter] = useState('')
   const [personFilter, setPersonFilter] = useState('')
-  const [projectFilter, setProjectFilter] = useState('')
-
-  // Sort state
-  const [sortField, setSortField] = useState<'person' | 'project' | 'role' | 'percent' | 'start_date'>('person')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   useEffect(() => {
-    loadData()
+    fetchData()
   }, [])
 
-  async function loadData() {
-    setLoading(true)
-
-    const [assignmentsResult, peopleResult, projectsResult] = await Promise.all([
-      supabase
+  const fetchData = async () => {
+    try {
+      // Fetch assignments with related data
+      const { data: assignmentsData, error: assignmentsError } = await supabase
         .from('assignments')
         .select(`
           *,
-          people(*),
-          projects(*)
+          people(name, email),
+          projects(name)
         `)
-        .order('created_at', { ascending: false }),
-      supabase.from('people').select('*').order('name'),
-      supabase.from('projects').select('*').order('name'),
-    ])
+        .order('created_at', { ascending: false })
 
-    if (assignmentsResult.data) setAssignments(assignmentsResult.data)
-    if (peopleResult.data) setPeople(peopleResult.data)
-    if (projectsResult.data) setProjects(projectsResult.data)
+      if (assignmentsError) throw assignmentsError
 
-    setLoading(false)
-  }
+      // Transform the data
+      const formattedAssignments = assignmentsData?.map(a => ({
+        ...a,
+        person_name: a.people?.name || 'Unknown',
+        person_email: a.people?.email || '',
+        project_name: a.projects?.name || 'Unknown',
+      })) || []
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+      setAssignments(formattedAssignments)
 
-    const data = {
-      person_id: formData.person_id,
-      project_id: formData.project_id,
-      role: formData.role || null,
-      percent: formData.percent ? parseFloat(formData.percent) : null,
-      start_date: formData.start_date || null,
-      end_date: formData.end_date || null,
-      notes: formData.notes || null,
-    }
+      // Fetch people and projects for form dropdowns
+      const { data: peopleData } = await supabase
+        .from('people')
+        .select('*')
+        .order('name')
 
-    if (editingId) {
-      const { error } = await supabase
-        .from('assignments')
-        .update(data)
-        .eq('id', editingId)
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .order('name')
 
-      if (error) {
-        alert('Error updating assignment: ' + error.message)
-        return
-      }
-    } else {
-      const { error } = await supabase
-        .from('assignments')
-        .insert([data])
+      setPeople(peopleData || [])
+      setProjects(projectsData || [])
 
-      if (error) {
-        alert('Error creating assignment: ' + error.message)
-        return
-      }
-    }
-
-    resetForm()
-    loadData()
-  }
-
-  function handleEdit(assignment: AssignmentWithDetails) {
-    setFormData({
-      person_id: assignment.person_id,
-      project_id: assignment.project_id,
-      role: assignment.role || '',
-      percent: assignment.percent?.toString() || '',
-      start_date: assignment.start_date || '',
-      end_date: assignment.end_date || '',
-      notes: assignment.notes || '',
-    })
-    setEditingId(assignment.id)
-    setShowForm(true)
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this assignment?')) return
-
-    const { error } = await supabase
-      .from('assignments')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      alert('Error deleting assignment: ' + error.message)
-    } else {
-      loadData()
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  function resetForm() {
-    setFormData({
-      person_id: '',
-      project_id: '',
-      role: '',
-      percent: '',
-      start_date: '',
-      end_date: '',
-      notes: '',
-    })
-    setEditingId(null)
-    setShowForm(false)
-  }
-
-  // Filter and search logic
-  const filteredAssignments = useMemo(() => {
-    return assignments.filter(assignment => {
-      const matchesSearch = searchTerm === '' ||
-        assignment.people?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        assignment.projects?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        assignment.role?.toLowerCase().includes(searchTerm.toLowerCase())
-
-      const matchesPerson = personFilter === '' || assignment.person_id === personFilter
-      const matchesProject = projectFilter === '' || assignment.project_id === projectFilter
-
-      return matchesSearch && matchesPerson && matchesProject
-    })
-  }, [assignments, searchTerm, personFilter, projectFilter])
-
-  // Sort logic
-  const sortedAssignments = useMemo(() => {
-    const sorted = [...filteredAssignments]
-    sorted.sort((a, b) => {
-      let aVal: any
-      let bVal: any
-
-      switch (sortField) {
-        case 'person':
-          aVal = a.people?.name
-          bVal = b.people?.name
-          break
-        case 'project':
-          aVal = a.projects?.name
-          bVal = b.projects?.name
-          break
-        case 'role':
-          aVal = a.role
-          bVal = b.role
-          break
-        case 'percent':
-          aVal = a.percent
-          bVal = b.percent
-          break
-        case 'start_date':
-          aVal = a.start_date
-          bVal = b.start_date
-          break
-        default:
-          aVal = a.people?.name
-          bVal = b.people?.name
-      }
-
-      if (aVal === null || aVal === undefined) return 1
-      if (bVal === null || bVal === undefined) return -1
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc'
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal)
-      }
-
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
-      }
-
-      return 0
-    })
-    return sorted
-  }, [filteredAssignments, sortField, sortDirection])
-
-  // CSV Export function
-  function exportToCSV() {
-    const headers = ['Person', 'Project', 'Role', 'Allocation %', 'Start Date', 'End Date', 'Notes']
-    const rows = sortedAssignments.map(assignment => [
-      assignment.people?.name || '',
-      assignment.projects?.name || '',
-      assignment.role || '',
-      assignment.percent?.toString() || '',
-      assignment.start_date || '',
-      assignment.end_date || '',
-      assignment.notes || ''
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `assignments-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
-  // PDF Export function
-  function exportToPDF() {
-    const doc = new jsPDF()
-
-    // Add title
-    doc.setFontSize(18)
-    doc.text("Jim's Team Tracker - Assignments", 14, 20)
-
-    // Add date
-    doc.setFontSize(10)
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
-
-    // Add table
-    autoTable(doc, {
-      startY: 35,
-      head: [['Person', 'Project', 'Role', 'Allocation %', 'Start Date']],
-      body: sortedAssignments.map(assignment => [
-        assignment.people?.name || '-',
-        assignment.projects?.name || '-',
-        assignment.role || '-',
-        assignment.percent ? `${assignment.percent}%` : '-',
-        assignment.start_date ? new Date(assignment.start_date).toLocaleDateString() : '-'
-      ]),
-      theme: 'striped',
-      headStyles: { fillColor: [147, 51, 234] }, // purple-600
-    })
-
-    // Save the PDF
-    doc.save(`assignments-${new Date().toISOString().split('T')[0]}.pdf`)
-  }
-
-  // Handle sort
-  function handleSort(field: typeof sortField) {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800'
+      case 'in_progress': return 'bg-blue-100 text-blue-800'
+      case 'complete': return 'bg-green-100 text-green-800'
+      case 'on_hold': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-500 text-white'
+      case 'high': return 'bg-orange-500 text-white'
+      case 'medium': return 'bg-yellow-500 text-white'
+      case 'low': return 'bg-green-500 text-white'
+      default: return 'bg-gray-500 text-white'
+    }
+  }
+
+  const filteredAssignments = assignments.filter(assignment => {
+    const matchesStatus = !statusFilter || assignment.status === statusFilter
+    const matchesPerson = !personFilter || assignment.person_id === personFilter
+    return matchesStatus && matchesPerson
+  })
+
+  const statusCounts = {
+    pending: assignments.filter(a => a.status === 'pending').length,
+    in_progress: assignments.filter(a => a.status === 'in_progress').length,
+    complete: assignments.filter(a => a.status === 'complete').length,
+    on_hold: assignments.filter(a => a.status === 'on_hold').length,
   }
 
   if (loading) {
-    return <div className="px-4 sm:px-6 lg:px-8">Loading...</div>
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl">Loading assignments...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Assignments</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Link people to projects and track their assignments
-          </p>
-        </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 flex gap-2">
-          <button
-            type="button"
-            onClick={exportToCSV}
-            className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={exportToPDF}
-            className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-          >
-            Export PDF
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowForm(!showForm)}
-            className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500"
-          >
-            {showForm ? 'Hide Form' : 'Add Assignment'}
-          </button>
-        </div>
-      </div>
-
-      {/* Search and Filter */}
-      <div className="mt-6 flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
-          <input
-            type="text"
-            placeholder="Search by person, project, or role..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-          />
-        </div>
-        <div className="w-48">
-          <select
-            value={personFilter}
-            onChange={(e) => setPersonFilter(e.target.value)}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-          >
-            <option value="">All People</option>
-            {people.map(person => (
-              <option key={person.id} value={person.id}>{person.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="w-48">
-          <select
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-          >
-            <option value="">All Projects</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>{project.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {showForm && (
-        <div className="mt-8 bg-white shadow sm:rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {editingId ? 'Edit Assignment' : 'Add New Assignment'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="person_id" className="block text-sm font-medium text-gray-700">
-                  Person *
-                </label>
-                <select
-                  id="person_id"
-                  required
-                  value={formData.person_id}
-                  onChange={(e) => setFormData({ ...formData, person_id: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                >
-                  <option value="">Select a person</option>
-                  {people.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.name} {person.role && `(${person.role})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="project_id" className="block text-sm font-medium text-gray-700">
-                  Project *
-                </label>
-                <select
-                  id="project_id"
-                  required
-                  value={formData.project_id}
-                  onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                >
-                  <option value="">Select a project</option>
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name} ({project.status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                  Role on Project
-                </label>
-                <input
-                  type="text"
-                  id="role"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                  placeholder="e.g., Lead Developer"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="percent" className="block text-sm font-medium text-gray-700">
-                  Time Allocation (%)
-                </label>
-                <input
-                  type="number"
-                  id="percent"
-                  min="0"
-                  max="100"
-                  value={formData.percent}
-                  onChange={(e) => setFormData({ ...formData, percent: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                  placeholder="50"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  id="start_date"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  id="end_date"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                />
-              </div>
-            </div>
-
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center">
             <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                rows={2}
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-              />
+              <h1 className="text-3xl font-bold text-gray-900">Work Assignments</h1>
+              <p className="mt-2 text-gray-600">
+                Track all work requests, issues, and tasks for your I&P team
+              </p>
             </div>
-
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="inline-flex justify-center rounded-md border border-transparent bg-purple-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-purple-700"
-              >
-                {editingId ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="mt-8">
-        {sortedAssignments.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <p className="text-gray-500">
-              {assignments.length === 0
-                ? 'No assignments yet. Link people to projects above!'
-                : 'No results found. Try adjusting your search or filters.'}
-            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              + New Assignment
+            </button>
           </div>
-        ) : (
-          <>
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('person')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Person
-                        {sortField === 'person' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('project')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Project
-                        {sortField === 'project' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('role')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Role
-                        {sortField === 'role' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('percent')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Allocation
-                        {sortField === 'percent' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('start_date')}
-                    >
-                      <div className="flex items-center gap-2">
-                        Dates
-                        {sortField === 'start_date' && (
-                          <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {sortedAssignments.map((assignment) => (
-                  <tr key={assignment.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {assignment.people?.name || 'Unknown'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {assignment.projects?.name || 'Unknown'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {assignment.role || '-'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {assignment.percent ? `${assignment.percent}%` : '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500">
-                      {assignment.start_date && (
-                        <div>{new Date(assignment.start_date).toLocaleDateString()}</div>
-                      )}
-                      {assignment.end_date && (
-                        <div className="text-xs text-gray-400">
-                          to {new Date(assignment.end_date).toLocaleDateString()}
-                        </div>
-                      )}
-                      {!assignment.start_date && !assignment.end_date && '-'}
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <button
-                        onClick={() => handleEdit(assignment)}
-                        className="text-purple-600 hover:text-purple-900 mr-4"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(assignment.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                  ))}
-                </tbody>
-              </table>
+        </div>
+
+        {/* Status Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-2xl font-bold text-yellow-600">{statusCounts.pending}</div>
+            <div className="text-sm text-gray-600">Pending</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-2xl font-bold text-blue-600">{statusCounts.in_progress}</div>
+            <div className="text-sm text-gray-600">In Progress</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-2xl font-bold text-red-600">{statusCounts.on_hold}</div>
+            <div className="text-sm text-gray-600">On Hold</div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="text-2xl font-bold text-green-600">{statusCounts.complete}</div>
+            <div className="text-sm text-gray-600">Complete</div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="on_hold">On Hold</option>
+                <option value="complete">Complete</option>
+              </select>
             </div>
-            <div className="mt-2 text-sm text-gray-500 text-center">
-              Showing {sortedAssignments.length} of {assignments.length} assignments
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Person
+              </label>
+              <select
+                value={personFilter}
+                onChange={(e) => setPersonFilter(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+              >
+                <option value="">All People</option>
+                {people.map(person => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </select>
             </div>
-          </>
+          </div>
+        </div>
+
+        {/* Assignments List */}
+        <div className="space-y-4">
+          {filteredAssignments.map((assignment) => (
+            <div key={assignment.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {assignment.title || 'Work Assignment'}
+                    </h3>
+                    {assignment.priority && (
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(assignment.priority)}`}>
+                        {assignment.priority.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="text-sm text-gray-600 mb-3">
+                    <strong>{assignment.person_name}</strong> working on <strong>{assignment.project_name}</strong>
+                  </div>
+
+                  {assignment.description && (
+                    <p className="text-gray-700 mb-3">{assignment.description}</p>
+                  )}
+
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                    {assignment.requester && <span>Requested by: {assignment.requester}</span>}
+                    {assignment.due_date && (
+                      <span>Due: {new Date(assignment.due_date).toLocaleDateString()}</span>
+                    )}
+                    {assignment.role && <span>Role: {assignment.role}</span>}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <select
+                    value={assignment.status || 'pending'}
+                    onChange={async (e) => {
+                      await supabase
+                        .from('assignments')
+                        .update({ status: e.target.value })
+                        .eq('id', assignment.id)
+                      fetchData()
+                    }}
+                    className={`px-3 py-1 text-sm rounded-full border-0 ${getStatusColor(assignment.status || 'pending')}`}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="complete">Complete</option>
+                  </select>
+                  
+                  <button
+                    onClick={() => setEditingAssignment(assignment)}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+
+              {assignment.notes && (
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-sm text-gray-600">
+                    <strong>Notes:</strong> {assignment.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {filteredAssignments.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-500">No assignments found.</div>
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Create First Assignment
+            </button>
+          </div>
+        )}
+
+        {/* Assignment Form Modal */}
+        {(showForm || editingAssignment) && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-screen overflow-y-auto">
+              <h3 className="text-lg font-medium mb-4">
+                {editingAssignment ? 'Edit Assignment' : 'New Work Assignment'}
+              </h3>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault()
+                const formData = new FormData(e.target as HTMLFormElement)
+                
+                const data = {
+                  person_id: formData.get('person_id') as string,
+                  project_id: formData.get('project_id') as string,
+                  title: formData.get('title') as string,
+                  description: formData.get('description') as string,
+                  status: formData.get('status') as string,
+                  priority: formData.get('priority') as string,
+                  requester: formData.get('requester') as string,
+                  due_date: formData.get('due_date') as string || null,
+                  role: formData.get('role') as string,
+                  notes: formData.get('notes') as string,
+                }
+                
+                if (editingAssignment) {
+                  await supabase
+                    .from('assignments')
+                    .update(data)
+                    .eq('id', editingAssignment.id)
+                } else {
+                  await supabase
+                    .from('assignments')
+                    .insert([data])
+                }
+                
+                setShowForm(false)
+                setEditingAssignment(null)
+                fetchData()
+              }}>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Person *</label>
+                      <select
+                        name="person_id"
+                        required
+                        defaultValue={editingAssignment?.person_id || ''}
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      >
+                        <option value="">Select person...</option>
+                        {people.map(person => (
+                          <option key={person.id} value={person.id}>{person.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Project *</label>
+                      <select
+                        name="project_id"
+                        required
+                        defaultValue={editingAssignment?.project_id || ''}
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      >
+                        <option value="">Select project...</option>
+                        {projects.map(project => (
+                          <option key={project.id} value={project.id}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">What work needs to be done? *</label>
+                    <input
+                      name="title"
+                      type="text"
+                      required
+                      defaultValue={editingAssignment?.title || ''}
+                      placeholder="e.g., Fix dashboard filtering issues, Update hurricane data"
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Detailed Description</label>
+                    <textarea
+                      name="description"
+                      rows={3}
+                      defaultValue={editingAssignment?.description || ''}
+                      placeholder="Detailed description of the issue, request, or work needed..."
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Status</label>
+                      <select
+                        name="status"
+                        defaultValue={editingAssignment?.status || 'pending'}
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="complete">Complete</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Priority</label>
+                      <select
+                        name="priority"
+                        defaultValue={editingAssignment?.priority || 'medium'}
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                      <input
+                        name="due_date"
+                        type="date"
+                        defaultValue={editingAssignment?.due_date || ''}
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Who requested this?</label>
+                      <input
+                        name="requester"
+                        type="text"
+                        defaultValue={editingAssignment?.requester || ''}
+                        placeholder="e.g., Jim Manson, Regional Manager"
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Role</label>
+                      <input
+                        name="role"
+                        type="text"
+                        defaultValue={editingAssignment?.role || ''}
+                        placeholder="e.g., Power BI Developer, GIS Analyst"
+                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Notes & Updates</label>
+                    <textarea
+                      name="notes"
+                      rows={2}
+                      defaultValue={editingAssignment?.notes || ''}
+                      placeholder="Additional notes, progress updates, blockers..."
+                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex gap-3">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+                  >
+                    {editingAssignment ? 'Update Assignment' : 'Create Assignment'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false)
+                      setEditingAssignment(null)
+                    }}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
     </div>

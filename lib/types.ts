@@ -22,11 +22,17 @@ export type Assignment = {
   id: string
   person_id: string
   project_id: string
+  title?: string | null  // What the work request is about
+  description?: string | null  // Detailed description of the issue/request
+  status?: 'pending' | 'in_progress' | 'complete' | 'on_hold' | null
+  priority?: 'low' | 'medium' | 'high' | 'urgent' | null
   role?: string | null
   percent?: number | null
   start_date?: string | null
   end_date?: string | null
-  notes?: string | null
+  due_date?: string | null
+  requester?: string | null  // Who requested this work
+  notes?: string | null  // Additional notes and updates
   created_at?: string
 }
 
