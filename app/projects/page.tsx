@@ -205,9 +205,34 @@ export default function ProjectsPage() {
     return sorted
   }, [filteredProjects, sortField, sortDirection])
 
-  // CSV Export function
+  // Helper function to sanitize text for exports
+  const sanitizeText = (text: string | null | undefined): string => {
+    if (!text) return ''
+    // Remove special characters that might break exports
+    return String(text)
+      .replace(/[\r\n]+/g, ' ')  // Replace line breaks with spaces
+      .replace(/\s+/g, ' ')       // Normalize whitespace
+      .trim()
+  }
+
+  // Helper function to generate consistent filename
+  const generateFilename = (extension: string): string => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `projects-comprehensive-${year}-${month}-${day}.${extension}`
+  }
+
+  // CSV Export function - with robust error handling
   async function exportToCSV() {
     try {
+      // Validate we have data
+      if (!sortedProjects || sortedProjects.length === 0) {
+        alert('No projects to export. Please adjust your filters.')
+        return
+      }
+
       // Fetch assignments and people data to join with projects
       const [assignmentsResult, peopleResult] = await Promise.all([
         supabase.from('assignments').select('*'),
@@ -248,42 +273,58 @@ export default function ProjectsPage() {
         const assignmentRoles = projectAssignments.map(a => a.role || 'Not specified').join('; ')
 
         return [
-          project.name,
-          project.project_type || '',
-          project.status,
-          assignedPeople || 'Unassigned',
-          assignmentRoles || 'No roles',
-          cleanDescription(project.description || null),
-          extractPowerBILink(project.description || null) || '',
-          extractWorkspace(project.description || null) || '',
-          extractDeveloper(project.description || null) || '',
+          sanitizeText(project.name),
+          sanitizeText(project.project_type || ''),
+          sanitizeText(project.status),
+          sanitizeText(assignedPeople || 'Unassigned'),
+          sanitizeText(assignmentRoles || 'No roles'),
+          sanitizeText(cleanDescription(project.description || null)),
+          sanitizeText(extractPowerBILink(project.description || null) || ''),
+          sanitizeText(extractWorkspace(project.description || null) || ''),
+          sanitizeText(extractDeveloper(project.description || null) || ''),
           project.start_date || '',
           project.end_date || '',
           project.created_at ? new Date(project.created_at).toISOString().split('T')[0] : ''
         ]
       })
 
+      // Build CSV content with proper escaping
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ...rows.map(row => row.map(cell => {
+          const escaped = String(cell).replace(/"/g, '""')
+          return `"${escaped}"`
+        }).join(','))
       ].join('\n')
 
-      const blob = new Blob([csvContent], { type: 'text/csv' })
+      // Create and download with explicit MIME type
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `projects-comprehensive-${new Date().toISOString().split('T')[0]}.csv`
-      a.click()
+      const link = document.createElement('a')
+      link.setAttribute('href', url)
+      link.setAttribute('download', generateFilename('csv'))
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+
+      console.log(`✅ CSV exported successfully: ${projectsData.length} projects`)
     } catch (error) {
       console.error('Error exporting CSV:', error)
-      alert('Error exporting CSV. Please try again.')
+      alert(`Error exporting CSV: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
     }
   }
 
-  // PDF Export function
+  // PDF Export function - with robust error handling
   async function exportToPDF() {
     try {
+      // Validate we have data
+      if (!sortedProjects || sortedProjects.length === 0) {
+        alert('No projects to export. Please adjust your filters.')
+        return
+      }
+
       // Fetch assignments and people data to join with projects
       const [assignmentsResult, peopleResult] = await Promise.all([
         supabase.from('assignments').select('*'),
@@ -311,20 +352,21 @@ export default function ProjectsPage() {
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(100, 100, 100)
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+      const dateStr = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      })}`, pageWidth / 2, 22, { align: 'center' })
+      })
+      doc.text(`Generated: ${dateStr}`, pageWidth / 2, 22, { align: 'center' })
 
       // Summary stats
       doc.setFontSize(10)
       doc.setTextColor(0, 0, 0)
       doc.text(`Total Projects: ${projectsData.length}`, 14, 30)
 
-      // Table data
+      // Sanitize table data to prevent encoding issues
       const tableData = projectsData.map(project => {
         const projectAssignments = assignmentsData.filter(a => a.project_id === project.id)
         const assignedPeople = projectAssignments
@@ -335,11 +377,11 @@ export default function ProjectsPage() {
           .join(', ')
 
         return [
-          project.name,
-          project.project_type || '-',
-          project.status,
-          assignedPeople || 'Unassigned',
-          cleanDescription(project.description || null),
+          sanitizeText(project.name),
+          sanitizeText(project.project_type || '-'),
+          sanitizeText(project.status),
+          sanitizeText(assignedPeople || 'Unassigned'),
+          sanitizeText(cleanDescription(project.description || null)),
           extractPowerBILink(project.description || null) ? 'Yes' : 'No',
           formatDate(project.start_date || null) || '-',
           formatDate(project.end_date || null) || '-'
@@ -370,7 +412,9 @@ export default function ProjectsPage() {
           fontSize: 8,
           cellPadding: 2,
           overflow: 'linebreak',
-          cellWidth: 'wrap'
+          cellWidth: 'wrap',
+          halign: 'left',
+          valign: 'middle'
         },
         columnStyles: {
           0: { cellWidth: 35 }, // Project Name
@@ -385,11 +429,22 @@ export default function ProjectsPage() {
         margin: { left: 14, right: 14 }
       })
 
-      // Save the PDF
-      doc.save(`projects-comprehensive-${new Date().toISOString().split('T')[0]}.pdf`)
+      // Use blob-based download for better reliability
+      const pdfBlob = doc.output('blob')
+      const url = window.URL.createObjectURL(pdfBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = generateFilename('pdf')
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      console.log(`✅ PDF exported successfully: ${projectsData.length} projects`)
     } catch (error) {
       console.error('Error exporting PDF:', error)
-      alert('Error exporting PDF. Please try again.')
+      alert(`Error exporting PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
     }
   }
 

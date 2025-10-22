@@ -93,9 +93,34 @@ export default function AssignmentsPage() {
     }
   }
 
-  // CSV Export function
+  // Helper function to sanitize text for exports
+  const sanitizeText = (text: string | null | undefined): string => {
+    if (!text) return ''
+    // Remove special characters that might break exports
+    return String(text)
+      .replace(/[\r\n]+/g, ' ')  // Replace line breaks with spaces
+      .replace(/\s+/g, ' ')       // Normalize whitespace
+      .trim()
+  }
+
+  // Helper function to generate consistent filename
+  const generateFilename = (extension: string): string => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `assignments-${year}-${month}-${day}.${extension}`
+  }
+
+  // CSV Export function - with robust error handling
   async function exportToCSV() {
     try {
+      // Validate we have data
+      if (!filteredAssignments || filteredAssignments.length === 0) {
+        alert('No assignments to export. Please adjust your filters.')
+        return
+      }
+
       const headers = [
         'Title',
         'Person',
@@ -113,45 +138,61 @@ export default function AssignmentsPage() {
         'Created'
       ]
 
-      // Use filtered assignments from the page (respects user's filters)
+      // Sanitize and validate data
       const rows = filteredAssignments.map(assignment => [
-        assignment.title || assignment.notes?.substring(0, 50) || 'Untitled',
-        assignment.person_name,
-        assignment.person_email || '',
-        assignment.project_name,
-        assignment.project_type || '',
-        assignment.status || 'pending',
-        assignment.priority || '',
-        assignment.due_date || '',
-        assignment.requester || '',
-        assignment.role || '',
-        assignment.percent?.toString() || '',
-        assignment.description || '',
-        assignment.notes || '',
+        sanitizeText(assignment.title || assignment.notes?.substring(0, 50) || 'Untitled'),
+        sanitizeText(assignment.person_name || 'Unknown'),
+        sanitizeText(assignment.person_email || ''),
+        sanitizeText(assignment.project_name || 'Unknown'),
+        sanitizeText(assignment.project_type || ''),
+        sanitizeText(assignment.status || 'pending'),
+        sanitizeText(assignment.priority || ''),
+        sanitizeText(assignment.due_date || ''),
+        sanitizeText(assignment.requester || ''),
+        sanitizeText(assignment.role || ''),
+        sanitizeText(assignment.percent?.toString() || ''),
+        sanitizeText(assignment.description || ''),
+        sanitizeText(assignment.notes || ''),
         assignment.created_at ? new Date(assignment.created_at).toISOString().split('T')[0] : ''
       ])
 
+      // Build CSV content with proper escaping
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ...rows.map(row => row.map(cell => {
+          const escaped = String(cell).replace(/"/g, '""')
+          return `"${escaped}"`
+        }).join(','))
       ].join('\n')
 
-      const blob = new Blob([csvContent], { type: 'text/csv' })
+      // Create and download with explicit MIME type
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `assignments-${new Date().toISOString().split('T')[0]}.csv`
-      a.click()
+      const link = document.createElement('a')
+      link.setAttribute('href', url)
+      link.setAttribute('download', generateFilename('csv'))
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+
+      console.log(`✅ CSV exported successfully: ${filteredAssignments.length} assignments`)
     } catch (error) {
       console.error('Error exporting CSV:', error)
-      alert('Error exporting CSV. Please try again.')
+      alert(`Error exporting CSV: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
     }
   }
 
-  // PDF Export function
+  // PDF Export function - with robust error handling
   async function exportToPDF() {
     try {
+      // Validate we have data
+      if (!filteredAssignments || filteredAssignments.length === 0) {
+        alert('No assignments to export. Please adjust your filters.')
+        return
+      }
+
       const doc = new jsPDF('landscape')
       const pageWidth = doc.internal.pageSize.width
 
@@ -165,13 +206,14 @@ export default function AssignmentsPage() {
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(100, 100, 100)
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-US', {
+      const dateStr = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
-      })}`, pageWidth / 2, 22, { align: 'center' })
+      })
+      doc.text(`Generated: ${dateStr}`, pageWidth / 2, 22, { align: 'center' })
 
       // Summary stats (from filtered results)
       doc.setFontSize(10)
@@ -181,7 +223,7 @@ export default function AssignmentsPage() {
       doc.text(`In Progress: ${filteredAssignments.filter(a => a.status === 'in_progress').length}`, 110, 30)
       doc.text(`Complete: ${filteredAssignments.filter(a => a.status === 'complete').length}`, 160, 30)
 
-      // Sort filtered assignments by status and priority (respects user's filters)
+      // Sort filtered assignments by status and priority
       const sortedAssignments = [...filteredAssignments].sort((a, b) => {
         const statusOrder = { 'pending': 1, 'in_progress': 2, 'on_hold': 3, 'complete': 4 }
         const priorityOrder = { 'urgent': 1, 'high': 2, 'medium': 3, 'low': 4 }
@@ -194,16 +236,16 @@ export default function AssignmentsPage() {
                (priorityOrder[b.priority as keyof typeof priorityOrder] || 99)
       })
 
-      // Table data
+      // Sanitize table data to prevent encoding issues
       const tableData = sortedAssignments.map(assignment => [
-        assignment.person_name,
-        assignment.project_name,
-        assignment.title || assignment.notes?.substring(0, 30) || 'Untitled',
-        assignment.status || 'pending',
-        assignment.priority || '-',
+        sanitizeText(assignment.person_name || 'Unknown'),
+        sanitizeText(assignment.project_name || 'Unknown'),
+        sanitizeText(assignment.title || assignment.notes?.substring(0, 30) || 'Untitled'),
+        sanitizeText(assignment.status || 'pending'),
+        sanitizeText(assignment.priority || '-'),
         formatDate(assignment.due_date || null) || '-',
-        assignment.role || '-',
-        assignment.requester || '-'
+        sanitizeText(assignment.role || '-'),
+        sanitizeText(assignment.requester || '-')
       ])
 
       autoTable(doc, {
@@ -230,7 +272,9 @@ export default function AssignmentsPage() {
           fontSize: 8,
           cellPadding: 2,
           overflow: 'linebreak',
-          cellWidth: 'wrap'
+          cellWidth: 'wrap',
+          halign: 'left',
+          valign: 'middle'
         },
         columnStyles: {
           0: { cellWidth: 30 },
@@ -245,10 +289,22 @@ export default function AssignmentsPage() {
         margin: { left: 14, right: 14 }
       })
 
-      doc.save(`assignments-${new Date().toISOString().split('T')[0]}.pdf`)
+      // Use blob-based download for better reliability
+      const pdfBlob = doc.output('blob')
+      const url = window.URL.createObjectURL(pdfBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = generateFilename('pdf')
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      console.log(`✅ PDF exported successfully: ${filteredAssignments.length} assignments`)
     } catch (error) {
       console.error('Error exporting PDF:', error)
-      alert('Error exporting PDF. Please try again.')
+      alert(`Error exporting PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`)
     }
   }
 
