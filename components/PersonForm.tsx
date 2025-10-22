@@ -10,16 +10,34 @@ type PersonFormProps = {
   onCancel?: () => void
 }
 
+const AVAILABLE_SKILLS = [
+  'Power BI',
+  'GIS', 
+  'DA',
+  'Situational awareness',
+  'Data',
+  'General Information and planning'
+]
+
 export default function PersonForm({ person, onSuccess, onCancel }: PersonFormProps) {
   const [formData, setFormData] = useState({
     name: person?.name || '',
     role: person?.role || '',
     email: person?.email || '',
-    skills: person?.skills?.join(', ') || '',
+    skills: person?.skills || [],
     notes: person?.notes || '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const handleSkillToggle = (skill: string) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter(s => s !== skill)
+        : [...prev.skills, skill]
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,16 +45,11 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
     setError(null)
 
     try {
-      const skillsArray = formData.skills
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s.length > 0)
-
       const data = {
         name: formData.name,
         role: formData.role || null,
         email: formData.email || null,
-        skills: skillsArray.length > 0 ? skillsArray : null,
+        skills: formData.skills.length > 0 ? formData.skills : null,
         notes: formData.notes || null,
       }
 
@@ -57,7 +70,7 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
         if (error) throw error
       }
 
-      setFormData({ name: '', role: '', email: '', skills: '', notes: '' })
+      setFormData({ name: '', role: '', email: '', skills: [], notes: '' })
       onSuccess?.()
     } catch (err: any) {
       setError(err.message)
@@ -116,17 +129,34 @@ export default function PersonForm({ person, onSuccess, onCancel }: PersonFormPr
       </div>
 
       <div>
-        <label htmlFor="skills" className="block text-sm font-medium text-gray-700">
-          Skills (comma-separated)
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          Skills
         </label>
-        <input
-          type="text"
-          id="skills"
-          value={formData.skills}
-          onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-          placeholder="e.g., JavaScript, React, Node.js"
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {AVAILABLE_SKILLS.map((skill) => (
+            <label key={skill} className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.skills.includes(skill)}
+                onChange={() => handleSkillToggle(skill)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-sm text-gray-700">{skill}</span>
+            </label>
+          ))}
+        </div>
+        {formData.skills.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {formData.skills.map((skill) => (
+              <span
+                key={skill}
+                className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
