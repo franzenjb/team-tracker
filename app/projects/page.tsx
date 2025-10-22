@@ -394,7 +394,7 @@ export default function ProjectsPage() {
                       </span>
                     </div>
                     <div className="mt-2">
-                      {renderDescription(project.description)}
+                      {renderDescription(project.description || null)}
                     </div>
                     {(project.start_date || project.end_date) && (
                       <div className="mt-3 text-xs text-gray-500">
@@ -456,7 +456,7 @@ export default function ProjectsPage() {
                             </span>
                           </div>
                           <div className="mt-1">
-                            {renderDescription(project.description)}
+                            {renderDescription(project.description || null)}
                           </div>
                           <div className="mt-2 flex gap-4 text-xs text-gray-500">
                             {start && <div>Start: {start.toLocaleDateString()}</div>}
