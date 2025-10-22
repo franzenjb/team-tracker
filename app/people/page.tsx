@@ -262,7 +262,8 @@ export default function PeoplePage() {
                 </p>
               </div>
             ) : (
-              <table className="min-w-full divide-y divide-gray-300 bg-white shadow rounded-lg">
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-300">
                 <thead>
                   <tr>
                     <th
@@ -298,7 +299,7 @@ export default function PeoplePage() {
                         )}
                       </div>
                     </th>
-                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-48">
                       Skills
                     </th>
                     <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -318,10 +319,10 @@ export default function PeoplePage() {
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {person.email || '-'}
                       </td>
-                      <td className="px-3 py-4 text-sm text-gray-500">
+                      <td className="px-3 py-4 text-sm text-gray-500 w-48">
                         {person.skills?.length ? (
-                          <div className="flex flex-wrap gap-1">
-                            {person.skills.map((skill, i) => (
+                          <div className="flex flex-wrap gap-1 max-w-48 overflow-hidden">
+                            {person.skills.slice(0, 3).map((skill, i) => (
                               <span
                                 key={i}
                                 className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
@@ -329,6 +330,11 @@ export default function PeoplePage() {
                                 {skill}
                               </span>
                             ))}
+                            {person.skills.length > 3 && (
+                              <span className="text-xs text-gray-400">
+                                +{person.skills.length - 3} more
+                              </span>
+                            )}
                           </div>
                         ) : (
                           '-'
@@ -351,7 +357,8 @@ export default function PeoplePage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             )}
             {sortedPeople.length > 0 && (
               <div className="mt-2 text-sm text-gray-500 text-center">
