@@ -92,63 +92,72 @@ export default function ProjectsPage() {
     // Split by | to separate different parts of the description
     const parts = description.split(' | ').filter(Boolean)
     
-    // Extract Power BI link separately
-    const powerBILink = description.match(/https?:\/\/app\.powerbi\.com[^\s|]+/)?.[0]
+    // Extract Power BI link more robustly
+    const powerBILinkMatch = description.match(/Power BI Link:\s*(https?:\/\/app\.powerbi\.com[^\s|]*)/i)
+    const powerBILink = powerBILinkMatch ? powerBILinkMatch[1] : null
+    
+    // Extract workspace info
+    const workspaceMatch = description.match(/Workspace:\s*([^|]+)/i)
+    const workspace = workspaceMatch ? workspaceMatch[1].trim() : null
+    
+    // Extract developer info
+    const developerMatch = description.match(/Developer:\s*([^|]+)/i)
+    const developer = developerMatch ? developerMatch[1].trim() : null
+    
+    // Get clean description parts (excluding metadata)
+    const cleanParts = parts.filter(part => 
+      !part.includes('Power BI Link:') && 
+      !part.includes('Workspace:') && 
+      !part.includes('Developer:') &&
+      !part.includes('Tags:') &&
+      part.trim().length > 0
+    )
     
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {/* Main description content */}
-        <div className="space-y-1">
-          {parts.map((part, index) => {
-            // Skip link parts - we'll handle them separately
-            if (part.includes('Link:') || part.includes('Workspace:')) {
-              return null
-            }
-            
-            // Clean up and display description parts
-            if (part && part.trim()) {
-              const cleanPart = part
-                .replace(/^(Tags:|Developer:|Description_Tags:)/, '')
-                .replace(/^Power BI Link:.*/, '')
-                .trim()
-              
-              if (cleanPart) {
-                return (
-                  <div key={index} className="text-sm text-gray-600">
-                    {cleanPart}
-                  </div>
-                )
-              }
-            }
-            
-            return null
-          })}
-        </div>
+        {cleanParts.length > 0 && (
+          <div className="space-y-1">
+            {cleanParts.map((part, index) => (
+              <div key={index} className="text-sm text-gray-600">
+                {part.trim()}
+              </div>
+            ))}
+          </div>
+        )}
         
-        {/* Power BI Link as separate, prominent element */}
+        {/* Power BI Link as separate, prominent section */}
         {powerBILink && (
-          <div className="border-t pt-2 mt-2">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📊</span>
-              <div className="flex flex-col">
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Power BI Dashboard</span>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-start gap-3">
+              <span className="text-xl mt-0.5">📊</span>
+              <div className="flex-1">
+                <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                  Power BI Dashboard
+                </div>
                 <a 
                   href={powerBILink} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm underline break-all"
+                  className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-sm underline"
                 >
-                  Open Dashboard →
+                  <span>🔗</span>
+                  Open Dashboard
+                  <span>→</span>
                 </a>
+                <div className="text-xs text-blue-600 mt-1 break-all opacity-75">
+                  {powerBILink}
+                </div>
               </div>
             </div>
           </div>
         )}
         
-        {/* Developer info if available */}
-        {parts.some(part => part.includes('Developer:')) && (
-          <div className="text-xs text-gray-500">
-            {parts.find(part => part.includes('Developer:'))?.replace('Developer:', '').trim()}
+        {/* Metadata section */}
+        {(developer || workspace) && (
+          <div className="text-xs text-gray-500 space-y-1 pt-2 border-t border-gray-100">
+            {developer && <div><strong>Developer:</strong> {developer}</div>}
+            {workspace && <div><strong>Workspace:</strong> {workspace}</div>}
           </div>
         )}
       </div>
