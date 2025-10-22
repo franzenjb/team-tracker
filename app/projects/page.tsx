@@ -92,41 +92,65 @@ export default function ProjectsPage() {
     // Split by | to separate different parts of the description
     const parts = description.split(' | ').filter(Boolean)
     
+    // Extract Power BI link separately
+    const powerBILink = description.match(/https?:\/\/app\.powerbi\.com[^\s|]+/)?.[0]
+    
     return (
-      <div className="space-y-1">
-        {parts.map((part, index) => {
-          // Check if this part contains a Power BI link
-          if (part.includes('Power BI Link:') || part.includes('Link:')) {
-            const linkMatch = part.match(/https?:\/\/[^\s]+/)
-            if (linkMatch) {
-              const url = linkMatch[0]
-              return (
-                <div key={index} className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">📊</span>
-                  <a 
-                    href={url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
-                  >
-                    Open Power BI Report
-                  </a>
-                </div>
-              )
+      <div className="space-y-2">
+        {/* Main description content */}
+        <div className="space-y-1">
+          {parts.map((part, index) => {
+            // Skip link parts - we'll handle them separately
+            if (part.includes('Link:') || part.includes('Workspace:')) {
+              return null
             }
-          }
-          
-          // Regular description part
-          if (part && !part.includes('Link:') && !part.includes('Workspace:')) {
-            return (
-              <div key={index} className="text-sm text-gray-600">
-                {part.replace(/^(Tags:|Developer:|Description_Tags:)/, '')}
+            
+            // Clean up and display description parts
+            if (part && part.trim()) {
+              const cleanPart = part
+                .replace(/^(Tags:|Developer:|Description_Tags:)/, '')
+                .replace(/^Power BI Link:.*/, '')
+                .trim()
+              
+              if (cleanPart) {
+                return (
+                  <div key={index} className="text-sm text-gray-600">
+                    {cleanPart}
+                  </div>
+                )
+              }
+            }
+            
+            return null
+          })}
+        </div>
+        
+        {/* Power BI Link as separate, prominent element */}
+        {powerBILink && (
+          <div className="border-t pt-2 mt-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-500 uppercase tracking-wide">Power BI Dashboard</span>
+                <a 
+                  href={powerBILink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 font-medium text-sm underline break-all"
+                >
+                  Open Dashboard →
+                </a>
               </div>
-            )
-          }
-          
-          return null
-        })}
+            </div>
+          </div>
+        )}
+        
+        {/* Developer info if available */}
+        {parts.some(part => part.includes('Developer:')) && (
+          <div className="text-xs text-gray-500">
+            {parts.find(part => part.includes('Developer:'))?.replace('Developer:', '').trim()}
+          </div>
+        )}
       </div>
     )
   }
