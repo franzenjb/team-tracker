@@ -264,34 +264,19 @@ export default function PeoplePage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {sortedPeople.map((person) => (
-              <div key={person.id} className="bg-white p-6 rounded-lg shadow border">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-medium text-gray-900 truncate">
+              <div key={person.id} className="bg-white p-6 rounded-lg shadow border min-h-[280px] flex flex-col">
+                <div className="flex-1">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 break-words">
                       {person.name}
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">
                       {person.role || 'No role specified'}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1 truncate">
+                    <p className="text-sm text-gray-600 mt-1 break-words">
                       {person.email || 'No email'}
                     </p>
                   </div>
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleEdit(person)}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deletePerson(person.id)}
-                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
                 
                 {person.skills?.length ? (
                   <div className="mt-4">
@@ -311,16 +296,33 @@ export default function PeoplePage() {
                   </div>
                 ) : null}
                 
-                {person.notes && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1">
-                      Notes
-                    </h4>
-                    <p className="text-sm text-gray-600 line-clamp-3">
-                      {person.notes}
-                    </p>
-                  </div>
-                )}
+                  {person.notes && (
+                    <div className="mt-4">
+                      <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1">
+                        Notes
+                      </h4>
+                      <p className="text-sm text-gray-600 line-clamp-3">
+                        {person.notes.replace(/<[^>]*>/g, '').trim()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Action buttons at bottom of card */}
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => handleEdit(person)}
+                    className="flex-1 inline-flex justify-center items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deletePerson(person.id)}
+                    className="flex-1 inline-flex justify-center items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
