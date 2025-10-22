@@ -524,11 +524,11 @@ export default function ProjectsPage() {
                   className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow"
                 >
                   <div className="p-5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-base font-medium text-gray-900 break-words flex-1">
                         {project.name}
                       </h3>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(project.status)}`}>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${getStatusBadgeClass(project.status)}`}>
                         {project.status}
                       </span>
                     </div>
