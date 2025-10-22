@@ -6,7 +6,7 @@ import AuthStatus from '@/components/AuthStatus'
 
 export const metadata: Metadata = {
   title: "Jim's Team Tracker",
-  description: 'Modern team and project management system',
+  description: 'Enhanced I&P team and project management system',
 }
 
 export default function RootLayout({
