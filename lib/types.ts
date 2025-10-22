@@ -12,6 +12,7 @@ export type Project = {
   id: string
   name: string
   status: 'planned' | 'active' | 'paused' | 'complete'
+  project_type?: 'dashboard' | 'power-bi' | 'gis-map' | 'document' | 'tableau' | 'other' | null
   description?: string | null
   start_date?: string | null
   end_date?: string | null
