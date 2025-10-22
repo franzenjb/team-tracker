@@ -27,13 +27,13 @@ export default function AssignmentsPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch assignments with related data
+      // Fetch assignments with related data (handle both old and new schema)
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from('assignments')
         .select(`
           *,
-          people(name, email),
-          projects(name)
+          people:person_id(name, email),
+          projects:project_id(name)
         `)
         .order('created_at', { ascending: false })
 
@@ -198,7 +198,7 @@ export default function AssignmentsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      {assignment.title || 'Work Assignment'}
+                      {assignment.title || assignment.notes || 'Work Assignment'}
                     </h3>
                     {assignment.priority && (
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getPriorityColor(assignment.priority)}`}>
@@ -208,11 +208,11 @@ export default function AssignmentsPage() {
                   </div>
                   
                   <div className="text-sm text-gray-600 mb-3">
-                    <strong>{assignment.person_name}</strong> working on <strong>{assignment.project_name}</strong>
+                    <strong>{assignment.person_name || 'Unassigned'}</strong> working on <strong>{assignment.project_name || 'Unknown Project'}</strong>
                   </div>
 
-                  {assignment.description && (
-                    <p className="text-gray-700 mb-3">{assignment.description}</p>
+                  {(assignment.description || assignment.notes) && (
+                    <p className="text-gray-700 mb-3">{assignment.description || assignment.notes}</p>
                   )}
 
                   <div className="flex flex-wrap gap-4 text-sm text-gray-500">
